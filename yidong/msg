@@ -1,0 +1,13 @@
+service=my
+continue=%2Fmy%2Flogin%2FloginSuccess.do 成功后转向页
+failurl=https%3A%2F%2Fzj.ac.10086.cn%2Flogin 失败转向页
+style=1 帐号类型（手机号码）
+pwdType=2 以服务密码登录
+SMSpwdType=0
+billId=13732224930 手机号码
+mima=fuwumima
+passwd1=%CD%FC%BC%C7%C3%DC%C2%EB%A3%BF%BF%C9%D3%C3%B6%CC%D0%C5%D1%E9%D6%A4%C2%EB%B5%C7%C2%BC ("忘记密码？可用短信验证码登录"格式转换之后出现的,并不需要更改)
+passwd=fc19930630
+validCodeId1=5%B8%F6%D7%D6%B7%FB ("5个字符"编码转换之后，不需要更改)
+validCode=exkue 图片验证码
+图片验证码路径:https://zj.ac.10086.cn/ImgDisp
