@@ -9,7 +9,7 @@ import sys
 import os
 import shutil
 import json
-from collections import defaultdict
+import re
 
 HEADERS = {'content-type': 'application/json',
            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:22.0) Gecko/20100101 Firefox/22.0'}
@@ -53,7 +53,7 @@ class User(object):
             print u"用户不存在,请确认"
             sys.exit()
 
-    def get_followBa(self):
+    def get_followba(self):
         """
         返回用户关注的贴吧
         :return:
@@ -95,13 +95,13 @@ class User(object):
         sex = self.userHtml.find('.//*[@id="userinfo_wrap"]/div[2]/div[3]/div/span[1]')
         return sex.attrib['class']
 
-    def get_followme(self,type='all'):
+    def get_followme(self, type='all'):
         """
         根据输入的type来返回对应的值：
         "all":{关注我的数量,{用户：主页地址...}}
         "num":关注我的数量
         "users":{用户：主页地址...}
-        :param type:
+        :param
         :return:
         """
         if self.userHtml.find('.//*[@id="container"]/div[2]/div[4]/h1/span'):
@@ -190,8 +190,9 @@ class User(object):
 
 class Tiezi(object):
     def __init__(self, num):
-        self.url = MAIN_URL + "p/" + num +"?see_lz=1&pn="
-        self.soup = soupparser.fromstring(requests.get(self.url+'1', headers=HEADERS).content)
+        self.url = MAIN_URL + "p/" + str(num) +"?see_lz=1&pn="
+        self.text = requests.get(self.url+'1', headers=HEADERS).content
+        self.soup = soupparser.fromstring(self.text)
         if self._is404():
             raise TieziError, u'输入的帖子错误或者已经被删除'
         self.teinum = num
@@ -199,7 +200,7 @@ class Tiezi(object):
     def __del__(self):
         pass
 
-    def downloadLZ(self, type='txt', start=1, end=5):
+    def downloadlz(self, type='txt', start=1, end=5):
         """
         type:txt or photo
         默认下载前5页的内容
@@ -300,6 +301,30 @@ class Tiezi(object):
         else:
             return False
 
+    def get_title(self):
+        """
+        获取帖子标题
+        :return:
+        """
+        title = self.soup.xpath('.//html/head/title')
+        return title[0].text
+
+    def get_author(self):
+        """
+        获取帖子作者
+        :return:
+        """
+        title = re.findall('author:"(.*?)"', self.text)
+        return title[0]
+
+    def get_reply_num(self):
+        """
+        获取帖子总回复数
+        :return:
+        """
+        reply_num = re.findall('reply_num:([0-9]*),', self.text)
+        return reply_num[0]
+
 
 class Tieba(object):
     def __init__(self, name):
@@ -309,18 +334,30 @@ class Tieba(object):
         self.url = ''.join(url_items)
         self.html = requests.get(self.url, headers=HEADERS).content
         self.soup = soupparser.fromstring(self.html)
-        if not self.exist():
+        if not self.__exist():
             raise TiebaError,'The tieba: "%s" have not exist!' % self.name
 
     def get_name(self):
-        name = soup.xpath('.//*[@class="card_title_fname"]')
+        """
+        获取贴吧名字
+        :return:
+        """
+        name = self.soup.xpath('.//*[@class="card_title_fname"]')
         return name[0].text
 
     def get_follow(self):
+        """
+        获取总关注数
+        :return:
+        """
         num = self.soup.xpath('.//*[@class="card_menNum"]')
         return num[0].text
 
     def get_tienum(self):
+        """
+        获取总的帖子数
+        :return:
+        """
         num = self.soup.xpath('.//*[@class="card_infoNum"]')
         return num[0].text
 
@@ -329,65 +366,86 @@ class Tieba(object):
         获取贴吧标签目录
         :return:list
         """
-        catalogs = soup.xpath('.//*[@class="card_info"]/ul/li/a')
+        catalogs = self.soup.xpath('.//*[@class="card_info"]/ul/li/a')
         return [i.text for i in catalogs]
 
     def get_ties(self):
-        x = soup.xpath('.//*[@id="thread_list"]/li')
+        """
+        返回一个生成器，内容是本贴吧首页的帖子的类
+        for循环时可以直接调用Tiezi里面类的函数，如：
+        ties = Tieba('angela').get_ties()
+        for tie in ties:
+            print tie.get_title()
+        :return:
+        """
+        x = self.soup.xpath('.//*[@id="thread_list"]/li')
+        ids = []
         for i in x:
             try:
-                print json.loads(i.attrib['data-field'])['id']
+                d = json.loads(i.attrib['data-field'])
+                # del d['vid']
+                # del d['is_good']
+                # del d['is_top']
+                # del d['is_protal']
+                # del d['is_bakan']
+                ids.append(d['id'])
             except:
                 pass
+        for i in ids:
+            yield Tiezi(i)
 
     def sign(self):
+        """
+        签到函数
+        :return:
+        """
         pass
 
     def follow(self):
+        """
+        关注函数
+        :return:
+        """
         pass
 
     def un_follow(self):
+        """
+        取消关注函数
+        :return:
+        """
         pass
 
     def create_tie(self, title, content):
+        """
+        发帖函数
+        :param title:
+        :param content:
+        :return:
+        """
         pass
 
-    def exist(self):
+    def __exist(self):
+        """
+        判断贴吧是否存在
+        :return:
+        """
         if self.soup.xpath('.//*[@class="sign_today_date"]'):
             return True
         else:
             return False
 
     def save_html(self, path=''):
+        """
+        保存贴吧首页的html文件
+        :param path:
+        :return:
+        """
         path = "%s.html" % self.name if path else path+"%s.html" % self.name
         with open(path, 'w') as f:
             f.write(self.html)
         print "html save succeed!"
 
 
-
-
-
-
 if __name__ == '__main__':
-    # name = ["pacin坑","尹大大与萧小小","pei坏"]
-    # n = ["4079508183", "4045828597", "3926556029"]
-    # c = Tiezi(n[0])
-    # print c.getnum()
-    # pass
-
-    # with open("zjgsdx.html","r") as f:
-    #     text = f.read()
-    # soup = soupparser.fromstring(text)
-    # x = soup.xpath('.//*[@id="thread_list"]/li')
-    # for i in x:
-    #     try:
-    #         d = json.loads(i.attrib['data-field'])
-    #         del d['vid']
-    #         del d['is_good']
-    #         del d['is_top']
-    #         del d['is_protal']
-    #         print d['is_bakan']
-    #     except:
-            pass
-
+    # http://tieba.baidu.com/f?kw=angela&ie=utf-8&tp=0
+    pass
