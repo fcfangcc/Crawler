@@ -330,7 +330,7 @@ class Tieba(object):
     def __init__(self, name):
         # self.name = repr(name.decode('UTF-8').encode('gbk')).replace("\'", "").replace("\\x", "%")
         self.name = name
-        url_items = [MAIN_URL, "f?kw=", name, "&fr=index"]
+        url_items = [MAIN_URL, "f?kw=", name, "&fr=home"]
         self.url = ''.join(url_items)
         self.html = requests.get(self.url, headers=HEADERS).content
         self.soup = soupparser.fromstring(self.html)
@@ -342,32 +342,42 @@ class Tieba(object):
         获取贴吧名字
         :return:
         """
-        name = self.soup.xpath('.//*[@class="card_title_fname"]')
-        return name[0].text
+        pass
 
-    def get_follow(self):
+    def get_follownum(self):
         """
         获取总关注数
         :return:
         """
-        num = self.soup.xpath('.//*[@class="card_menNum"]')
-        return num[0].text
+        try:
+            num = self.soup.xpath('.//*[@class="card_menNum"]')
+            return num[0].text
+        except:
+            num = re.findall("'memberNumber': '([0-9]*)'", self.html)
+            return num[0]
 
     def get_tienum(self):
         """
         获取总的帖子数
         :return:
         """
-        num = self.soup.xpath('.//*[@class="card_infoNum"]')
-        return num[0].text
+        try:
+            num = self.soup.xpath('.//*[@class="card_infoNum"]')
+            return num[0].text
+        except:
+            num = re.findall('class="red_text">([0-9]*)</span>', self.html)
+            return num[0]
 
     def get_catalog(self):
         """
         获取贴吧标签目录
         :return:list
         """
-        catalogs = self.soup.xpath('.//*[@class="card_info"]/ul/li/a')
-        return [i.text for i in catalogs]
+        try:
+            catalogs = self.soup.xpath('.//*[@class="card_info"]/ul/li/a')
+            return [i.text for i in catalogs]
+        except:
+            return u"此帖吧为js动态生成，暂不支持"
 
     def get_ties(self):
         """
@@ -379,6 +389,8 @@ class Tieba(object):
         :return:
         """
         x = self.soup.xpath('.//*[@id="thread_list"]/li')
+        if not x:
+            raise TiebaError, u"此帖吧为js动态生成，暂不支持此函数"
         ids = []
         for i in x:
             try:
@@ -397,8 +409,11 @@ class Tieba(object):
     def sign(self):
         """
         签到函数
+        查看login.Login().sign()函数
+        由于需要登录，函数在login类里面
         :return:
         """
+
         pass
 
     def follow(self):
@@ -408,7 +423,7 @@ class Tieba(object):
         """
         pass
 
-    def un_follow(self):
+    def remove_follow(self):
         """
         取消关注函数
         :return:
@@ -429,7 +444,11 @@ class Tieba(object):
         判断贴吧是否存在
         :return:
         """
-        if self.soup.xpath('.//*[@class="sign_today_date"]'):
+        # if self.soup.xpath('.//*[@class="sign_today_date"]'):
+        #     return True
+        # else:
+        #     return False
+        if re.findall('class="sign_today_date">', self.html):
             return True
         else:
             return False
@@ -445,7 +464,14 @@ class Tieba(object):
             f.write(self.html)
         print "html save succeed!"
 
+    def get_tieba_url(self):
+        return self.url
+
+    def get_tieba_html(self):
+        return self.html
 
 if __name__ == '__main__':
     # http://tieba.baidu.com/f?kw=angela&ie=utf-8&tp=0
+    # a = Tieba("炉石传说")
+    # print a.get_catalog()
     pass

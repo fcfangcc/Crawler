@@ -6,25 +6,28 @@ import re
 import time
 from lxml.html import soupparser
 import json
-
+from tieba import Tieba
 cj = cookielib.CookieJar()
 opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
 urllib2.install_opener(opener)
 HEADER = {
-        "Content-Type":"application/x-www-form-urlencoded; charset=UTF-8",
-        "Accept":"application/json, text/javascript, */*; q=0.01",
-        "Accept-Encoding":"gzip, deflate",
-        "Accept-Language":"zh-CN,zh;q=0.8",
-        "Connection":"keep-alive",
-        "Referer":"",
-        "User-Agent":"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.72 Safari/537.36"
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Accept-Encoding": "gzip, deflate",
+        "Accept-Language": "zh-CN,zh;q=0.8",
+        "Connection": "keep-alive",
+        "Referer": "",
+        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.72 Safari/537.36"
          }
+MAIN_URL = "http://tieba.baidu.com/"
+
 
 class Login(object):
     def __init__(self, USERNAME, PASSWORD):
         self.username = USERNAME
         self.password = PASSWORD
         self.URL_BAIDU_PINGLUN = 'http://tieba.baidu.com/f/commit/post/add'
+        self.URL_BAIDU_SIGN = 'http://tieba.baidu.com/sign/add'
 
     def login(self):
         """
@@ -78,6 +81,11 @@ class Login(object):
         content = urllib2.urlopen(url).read()
         return content
 
+    def __postdata(self, url, param, headers):
+        req = urllib2.Request(url=url, data=param, headers=headers)
+        urllib2.urlopen(req).read()
+        return True
+
     def reply(self, response, tie_num):
         """
         回复帖子函数
@@ -106,8 +114,9 @@ class Login(object):
                 }
         postdata = urllib.urlencode(data)
         HEADER['Referer'] = url
-        req = urllib2.Request(url=self.URL_BAIDU_PINGLUN, data=postdata, headers=HEADER)
-        content = urllib2.urlopen(req).read()
+        self.__postdata(self.URL_BAIDU_PINGLUN, postdata, HEADER)
+        # req = urllib2.Request(url=self.URL_BAIDU_PINGLUN, data=postdata, headers=HEADER)
+        # content = urllib2.urlopen(req).read()
         return True
 
     def __get_msg(self, url):
@@ -132,9 +141,143 @@ class Login(object):
         dictory["mouse_pwd_t"] = int(time.time())
         return dictory
 
+    def sign(self, name):
+        """
+        对贴吧签到，前提需要loggin()
+        如果签到成功或者已经签到，返回True
+        如果签到失败返回False
+        使用方法:
+        login = Login(username,password)
+        login.login()
+        login.sign("杭州")
+        :param name:
+        :return:
+        """
+        tieba = Tieba(name)
+        url = tieba.get_tieba_url()
+        if self.__issign(url):
+            return True
+        html = tieba.get_tieba_html()
+        try:
+            tbs = re.findall("'tbs':'([\w]*)'", html)[0]
+        except:
+            tbs = re.findall(''''tbs': "([\w]*)"''', html)[0]
+        data = {'ie': 'utf-8',
+                'kw': name,
+                'tbs': tbs,
+                }
+        postdata = urllib.urlencode(data)
+        HEADER['Referer'] = url
+        HEADER['Cache-Control'] = 'no-cache'
+        self.__postdata(self.URL_BAIDU_SIGN, postdata, HEADER)
+        # req = urllib2.Request(url=self.URL_BAIDU_SIGN, data=postdata, headers=HEADER)
+        # content = urllib2.urlopen(req).read()
+        if self.__issign(url):
+            return True
+        else:
+            return False
+
+    def __issign(self, url):
+        content = self.fetch(url)
+        soup = soupparser.fromstring(content)
+        if soup.xpath('.//*[@class="sign_keep_span"]'):
+            return True
+        else:
+            return False
+
+    # 还在测试中，暂时不开放
+    def __follow(self, name):
+        """
+        关注贴吧，前提需要loggin()
+        如果已经关注或者关注成功，返回True
+        如果关注失败返回False
+        使用方法:
+        login = Login(username,password)
+        login.login()
+        login.follow("杭州")
+        :param name:
+        :return:
+        """
+        tieba = Tieba(name)
+        url = tieba.get_tieba_url()
+        if self.__isfollow(url):
+            return True
+        html = tieba.get_tieba_html()
+        tbs = re.findall("'tbs':'([\w]*)'", html)[0]
+        fid = re.findall('"forum_id":([0-9]*),', html)[0]
+        data = {'ie': 'gbk',
+                'fid': fid,
+                'fname': name,
+                'uid': self.username,
+                'tbs': tbs,
+                }
+        postdata = urllib.urlencode(data)
+        URL_BAIDU_DELETE = 'http://tieba.baidu.com/f/like/commit/add'
+        HEADER['Referer'] = url
+        HEADER['Cache-Control'] = 'no-cache'
+        self.__postdata(URL_BAIDU_DELETE, postdata, HEADER)
+        if self.__isfollow(url):
+            return True
+        else:
+            return False
+
+    # 还在测试中，暂时不开放
+    def __remove_follow(self, name):
+        """
+        取消关注贴吧，前提需要loggin()
+        如果已经取消关注或者取消关注成功，返回True
+        如果取消关注失败返回False
+        使用方法:
+        login = Login(username,password)
+        login.login()
+        login.remove_follow("杭州")
+        :param name:
+        :return:
+        """
+        tieba = Tieba(name)
+        url = tieba.get_tieba_url()
+        if not self.__isfollow(url):
+            return True
+        html = tieba.get_tieba_html()
+        try:
+            tbs = re.findall("'tbs':'([\w]*)'", html)[0]
+        except:
+            tbs = re.findall(''''tbs': "([\w]*)"''', html)[0]
+        fid = re.findall('"forum_id":([0-9]*),', html)[0]
+        data = {'ie': 'utf-8',
+                'fid': fid,
+                'fname': name,
+                'uid': urllib.quote(self.username)+'&ie=utf-8',
+                'tbs': tbs,
+                }
+        postdata = urllib.urlencode(data)
+        URL_BAIDU_DELETE = 'http://tieba.baidu.com/f/like/commit/delete'
+        HEADER['Referer'] = url
+        HEADER['Accept'] = '*/*'
+        HEADER['Content-Length'] = len(postdata)
+        HEADER['X-Requested-With'] = 'XMLHttpRequest'
+        HEADER['host'] = 'tieba.baidu.com'
+        HEADER['Cache-Control'] = 'no-cache'
+        HEADER['Connection'] = 'Keep-Alive'
+        print postdata
+        self.__postdata(URL_BAIDU_DELETE, postdata, HEADER)
+        if not self.__isfollow(url):
+            return True
+        else:
+            return False
+
+    def __isfollow(self, url):
+        content = self.fetch(url)
+        soup = soupparser.fromstring(content)
+        if soup.xpath('.//*[@class="focus_btn cancel_focus"]'):
+            return True
+        elif soup.xpath('.//*[@class="focus_btn islike_focus"]'):
+            return False
+        else:
+            raise Exception,u'贴吧版本已更新，此函数以弃用，请通知swjfc22@163.com更新代码，谢谢！'
 
 if __name__ == "__main__":
-    # login = Login(USERNAME,PWD).login().
+    # "http://tieba.baidu.com/f?kw=陈法拉&fr=index"
     # then you can do everything
     pass
 
