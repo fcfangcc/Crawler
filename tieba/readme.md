@@ -71,19 +71,21 @@ login.reply("回复的内容","帖子编号")
 
 //可以使用这个脚本来刷某个贴吧的经验= =
 
-## 20151125日更新:
+## 20151130日更新:
 
 发现有的贴吧首页变成了js动态生成，所以之前有的很多函数不能正常使用。
 在修改了之后还是有一些不能使用。
 
 现在貌似百度在某些贴吧测试，估计后面贴吧也会变成js动态生成。
 
-主要增加内容：贴吧签到
+主要增加内容：贴吧签到,贴吧发表新帖
 
-login = Login(username,password)
+tieba = Tieba(name, username,password) //如:Tieba("杭州","admin","123456")
 
-login.login()
+tieba.sign() //签到
 
-login.sign("杭州")
+tieba.thread(title, content) //tieba.thread("测试","hello,word")
 
 其它一些简单的关于贴吧基本信息获取函数.
+
+关注和取消关注，还在测试中.

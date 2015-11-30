@@ -26,9 +26,6 @@ params = {
     "validCode": '',
 }
 
-# 保证验证码和登录的cookie一样，不然会失败.以浙江移动为例
-# 如其它地区的移动请修改网页前面的前缀
-# 貌似移动的利用服务密码登录的有点问题，在网页也无法登录。
 def login(tel, passwd):
     img_msg = urllib2.urlopen('https://zj.ac.10086.cn/ImgDisp').read()
     with open('a.png', 'wb') as f:
@@ -43,5 +40,5 @@ def login(tel, passwd):
     return page.read()
 
 
-if __name__=='_main__':
+if __name__ == '__main__':
     login('****', '****')

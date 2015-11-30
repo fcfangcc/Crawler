@@ -10,6 +10,7 @@ import os
 import shutil
 import json
 import re
+from login import Login
 
 HEADERS = {'content-type': 'application/json',
            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:22.0) Gecko/20100101 Firefox/22.0'}
@@ -327,22 +328,20 @@ class Tiezi(object):
 
 
 class Tieba(object):
-    def __init__(self, name):
+    def __init__(self, name, username, password):
         # self.name = repr(name.decode('UTF-8').encode('gbk')).replace("\'", "").replace("\\x", "%")
         self.name = name
         url_items = [MAIN_URL, "f?kw=", name, "&fr=home"]
         self.url = ''.join(url_items)
         self.html = requests.get(self.url, headers=HEADERS).content
-        self.soup = soupparser.fromstring(self.html)
+        try:
+            self.soup = soupparser.fromstring(self.html)
+        except ValueError:
+            self.soup = ''
         if not self.__exist():
             raise TiebaError,'The tieba: "%s" have not exist!' % self.name
-
-    def get_name(self):
-        """
-        获取贴吧名字
-        :return:
-        """
-        pass
+        self.login = Login(username, password)
+        self.login.login()
 
     def get_follownum(self):
         """
@@ -409,16 +408,15 @@ class Tieba(object):
     def sign(self):
         """
         签到函数
-        查看login.Login().sign()函数
-        由于需要登录，函数在login类里面
+        20151126通过测试
         :return:
         """
-
-        pass
+        return self.login.sign(self.name, self.url, self.html)
 
     def follow(self):
         """
         关注函数
+        还在测试
         :return:
         """
         pass
@@ -426,18 +424,21 @@ class Tieba(object):
     def remove_follow(self):
         """
         取消关注函数
+        还在测试
         :return:
         """
-        pass
+        return self.login.remove_follow(self.name, self.url, self.html)
 
-    def create_tie(self, title, content):
+    def thread(self, title, content):
         """
         发帖函数
-        :param title:
-        :param content:
+        20151126通过测试
+        :param title: 标题
+        :param content: 内容
         :return:
         """
-        pass
+        self.login.create_tie(title, content, self.url, self.name)
+        return True
 
     def __exist(self):
         """
@@ -470,8 +471,8 @@ class Tieba(object):
     def get_tieba_html(self):
         return self.html
 
+
 if __name__ == '__main__':
-    # http://tieba.baidu.com/f?kw=angela&ie=utf-8&tp=0
-    # a = Tieba("炉石传说")
-    # print a.get_catalog()
+    # a = Tieba("柯南", "", "")
+    # print a.remove_follow()
     pass

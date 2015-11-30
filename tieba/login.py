@@ -6,7 +6,6 @@ import re
 import time
 from lxml.html import soupparser
 import json
-from tieba import Tieba
 cj = cookielib.CookieJar()
 opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
 urllib2.install_opener(opener)
@@ -27,6 +26,7 @@ class Login(object):
         self.username = USERNAME
         self.password = PASSWORD
         self.URL_BAIDU_PINGLUN = 'http://tieba.baidu.com/f/commit/post/add'
+        self.URL_BAIDU_THREAD = 'http://tieba.baidu.com/f/commit/thread/add'
         self.URL_BAIDU_SIGN = 'http://tieba.baidu.com/sign/add'
 
     def login(self):
@@ -83,18 +83,19 @@ class Login(object):
 
     def __postdata(self, url, param, headers):
         req = urllib2.Request(url=url, data=param, headers=headers)
-        urllib2.urlopen(req).read()
+        msg = urllib2.urlopen(req).read()
         return True
 
     def reply(self, response, tie_num):
         """
         回复帖子函数
+        如果发帖有问题，注意修改mouse_pwd参数.
         :param response: 需要回复的内容
         :param tie_num: 帖子的号码
         :return:
         """
         url = "http://tieba.baidu.com/p/" + str(tie_num) + "/submit"
-        msg = self.__get_msg(url)
+        msg = self.__get_msg_reply(url)
         print msg
         data = {'ie': 'utf-8',
                 'content': response,
@@ -119,7 +120,7 @@ class Login(object):
         # content = urllib2.urlopen(req).read()
         return True
 
-    def __get_msg(self, url):
+    def __get_msg_reply(self, url):
         """
         获取post数据所需要的各种参数，通过游览器查看得出
         唯一有疑问的是mouse_pwd这个参数，在我电脑上实验这个参数可以顺利评论帖子
@@ -141,23 +142,16 @@ class Login(object):
         dictory["mouse_pwd_t"] = int(time.time())
         return dictory
 
-    def sign(self, name):
+    def sign(self, name, url, html):
         """
         对贴吧签到，前提需要loggin()
         如果签到成功或者已经签到，返回True
         如果签到失败返回False
-        使用方法:
-        login = Login(username,password)
-        login.login()
-        login.sign("杭州")
         :param name:
         :return:
         """
-        tieba = Tieba(name)
-        url = tieba.get_tieba_url()
         if self.__issign(url):
             return True
-        html = tieba.get_tieba_html()
         try:
             tbs = re.findall("'tbs':'([\w]*)'", html)[0]
         except:
@@ -179,30 +173,26 @@ class Login(object):
 
     def __issign(self, url):
         content = self.fetch(url)
-        soup = soupparser.fromstring(content)
-        if soup.xpath('.//*[@class="sign_keep_span"]'):
+        # soup = soupparser.fromstring(content)
+        # if soup.xpath('.//*[@class="sign_keep_span"]'):
+        if re.findall('class="sign_keep_span"', content):
             return True
         else:
             return False
 
-    # 还在测试中，暂时不开放
-    def __follow(self, name):
+    def __follow(self, name, url, html):
         """
-        关注贴吧，前提需要loggin()
+        关注贴吧
         如果已经关注或者关注成功，返回True
         如果关注失败返回False
-        使用方法:
-        login = Login(username,password)
-        login.login()
-        login.follow("杭州")
         :param name:
         :return:
         """
-        tieba = Tieba(name)
-        url = tieba.get_tieba_url()
+        # tieba = Tieba(name)
+        # url = tieba.get_tieba_url()
         if self.__isfollow(url):
             return True
-        html = tieba.get_tieba_html()
+        # html = tieba.get_tieba_html()
         tbs = re.findall("'tbs':'([\w]*)'", html)[0]
         fid = re.findall('"forum_id":([0-9]*),', html)[0]
         data = {'ie': 'gbk',
@@ -221,24 +211,19 @@ class Login(object):
         else:
             return False
 
-    # 还在测试中，暂时不开放
-    def __remove_follow(self, name):
+    def remove_follow(self, name, url, html):
         """
-        取消关注贴吧，前提需要loggin()
+        取消关注贴吧
         如果已经取消关注或者取消关注成功，返回True
         如果取消关注失败返回False
-        使用方法:
-        login = Login(username,password)
-        login.login()
-        login.remove_follow("杭州")
         :param name:
         :return:
         """
-        tieba = Tieba(name)
-        url = tieba.get_tieba_url()
+        # tieba = Tieba(name)
+        # url = tieba.get_tieba_url()
         if not self.__isfollow(url):
             return True
-        html = tieba.get_tieba_html()
+        # html = tieba.get_tieba_html()
         try:
             tbs = re.findall("'tbs':'([\w]*)'", html)[0]
         except:
@@ -247,7 +232,7 @@ class Login(object):
         data = {'ie': 'utf-8',
                 'fid': fid,
                 'fname': name,
-                'uid': urllib.quote(self.username)+'&ie=utf-8',
+                'uid': self.username,
                 'tbs': tbs,
                 }
         postdata = urllib.urlencode(data)
@@ -259,7 +244,6 @@ class Login(object):
         HEADER['host'] = 'tieba.baidu.com'
         HEADER['Cache-Control'] = 'no-cache'
         HEADER['Connection'] = 'Keep-Alive'
-        print postdata
         self.__postdata(URL_BAIDU_DELETE, postdata, HEADER)
         if not self.__isfollow(url):
             return True
@@ -268,13 +252,69 @@ class Login(object):
 
     def __isfollow(self, url):
         content = self.fetch(url)
-        soup = soupparser.fromstring(content)
-        if soup.xpath('.//*[@class="focus_btn cancel_focus"]'):
-            return True
-        elif soup.xpath('.//*[@class="focus_btn islike_focus"]'):
-            return False
-        else:
-            raise Exception,u'贴吧版本已更新，此函数以弃用，请通知swjfc22@163.com更新代码，谢谢！'
+        try:
+            soup = soupparser.fromstring(content)
+            if soup.xpath('.//*[@class="focus_btn cancel_focus"]'):
+                return True
+            elif soup.xpath('.//*[@class="focus_btn islike_focus"]'):
+                return False
+            else:
+                raise Exception,u'贴吧版本已更新，此函数以弃用，请通知swjfc22@163.com更新代码，谢谢！'
+        except:
+            if re.findall('class="focus_btn cancel_focus"', content):
+                return True
+            elif re.findall('class="focus_btn islike_focus"', content):
+                return False
+            else:
+                raise Exception,u'贴吧版本已更新，此函数以弃用，请通知swjfc22@163.com更新代码，谢谢！'
+
+    def create_tie(self, title, content, url, name):
+        """
+        如果发帖有问题，注意修改mouse_pwd参数.
+        :param title: 帖子标题
+        :param response: 帖子内容
+        :param url: 贴吧地址
+        :param name: 贴吧名字
+        :return:
+        """
+        msg = self.__get_msg_tieba(url)
+        data = {'ie': 'utf-8',
+                'kw': name,
+                'fid': msg['fid'],
+                "tid": 0,
+                "vcode_md5": "",
+                "floor_num": 0,
+                "rich_text": 1,
+                "tbs": msg['tbs'],
+                "content": content,
+                "title": title,
+                "prefix": "",
+                "files": "[]",
+                "mouse_pwd": "1,15,10,22,15,1,1,1,0,15,15,1,10,1,14,0,15,20,0,12,10,8,22,15,9,1,15,10,14,13,14,10,13,49,9,20,8,20,9,20,8,20,9,20,8,20,9,20,8,20,9,20,8,49,9,8,10,11,10,10,49,9,13,11,14,20,0,14,12," + str(int(time.time()*10000)),
+                "mouse_pwd_t": msg["mouse_pwd_t"],
+                "mouse_pwd_isclick": 0,
+                "__type__": "thread"
+                }
+        postdata = urllib.urlencode(data)
+        HEADER['Referer'] = url
+        HEADER['Accept-Language'] = 'zh-CN'
+        HEADER['Host'] = 'tieba.baidu.com'
+        HEADER['Content-Length'] = len(postdata)
+        HEADER['X-Requested-With'] = 'XMLHttpRequest'
+        self.__postdata(self.URL_BAIDU_THREAD, postdata, HEADER)
+        return True
+
+    def __get_msg_tieba(self, url):
+        dictory = {}
+        html = self.fetch(url)
+        try:
+            dictory['tbs'] = re.findall("'tbs':'([\w]*)'", html)[0]
+        except:
+            dictory['tbs'] = re.findall(''''tbs': "([\w]*)"''', html)[0]
+        dictory['fid'] = re.findall('"forum_id":([0-9]*),', html)[0]
+        dictory["mouse_pwd_t"] = int(time.time())*1000
+        return dictory
+
 
 if __name__ == "__main__":
     # "http://tieba.baidu.com/f?kw=陈法拉&fr=index"
