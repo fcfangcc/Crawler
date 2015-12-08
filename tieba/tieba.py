@@ -326,9 +326,12 @@ class Tiezi(object):
         reply_num = re.findall('reply_num:([0-9]*),', self.text)
         return reply_num[0]
 
+    def get_url(self):
+        return self.url
+
 
 class Tieba(object):
-    def __init__(self, name, username, password):
+    def __init__(self, name, username=None, password=None):
         # self.name = repr(name.decode('UTF-8').encode('gbk')).replace("\'", "").replace("\\x", "%")
         self.name = name
         url_items = [MAIN_URL, "f?kw=", name, "&fr=home"]
@@ -340,8 +343,9 @@ class Tieba(object):
             self.soup = ''
         if not self.__exist():
             raise TiebaError,'The tieba: "%s" have not exist!' % self.name
-        self.login = Login(username, password)
-        self.login.login()
+        if username and password:
+            self.login = Login(username, password)
+            self.login.login()
 
     def get_follownum(self):
         """
@@ -389,7 +393,9 @@ class Tieba(object):
         """
         x = self.soup.xpath('.//*[@id="thread_list"]/li')
         if not x:
-            raise TiebaError, u"此帖吧为js动态生成，暂不支持此函数"
+            # raise TiebaError, u"此帖吧为js动态生成，暂不支持此函数"
+            self.get_html_by_js()
+            x = self.soup.xpath('.//*[@id="thread_list"]/li')
         ids = []
         for i in x:
             try:
@@ -408,7 +414,7 @@ class Tieba(object):
     def sign(self):
         """
         签到函数
-        20151126通过测试
+        20151208通过测试
         :return:
         """
         return self.login.sign(self.name, self.url, self.html)
@@ -419,6 +425,7 @@ class Tieba(object):
         还在测试
         :return:
         """
+        # todo:未来添加
         pass
 
     def remove_follow(self):
@@ -427,12 +434,13 @@ class Tieba(object):
         还在测试
         :return:
         """
+         # todo:未来添加
         return self.login.remove_follow(self.name, self.url, self.html)
 
     def thread(self, title, content):
         """
         发帖函数
-        20151126通过测试
+        20151208通过测试
         :param title: 标题
         :param content: 内容
         :return:
@@ -465,14 +473,29 @@ class Tieba(object):
             f.write(self.html)
         print "html save succeed!"
 
+    def get_html(self):
+        """
+        返回贴吧首页的html内容。
+        如果是js生成的，建议先执行set_html_by_js()之后在获取，可以得到正确的html
+        :return:
+        """
+        return self.html
+
     def get_tieba_url(self):
         return self.url
 
     def get_tieba_html(self):
         return self.html
 
+    def set_html_by_js(self):
+        """
+        利用casperjs来加载贴吧首页，并获得解析之后的HTML内容
+        :return:
+        """
+        from jshtml.jshtml import Js_Html
+        self.html = Js_Html().get_html(self.url)
+        self.soup = soupparser.fromstring(self.html)
+
 
 if __name__ == '__main__':
-    # a = Tieba("柯南", "", "")
-    # print a.remove_follow()
     pass

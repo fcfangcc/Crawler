@@ -89,3 +89,11 @@ tieba.thread(title, content) //tieba.thread("测试","hello,word")
 其它一些简单的关于贴吧基本信息获取函数.
 
 关注和取消关注，还在测试中.
+
+#### 增加了对js生成的贴吧首页的支持:TieBa().set_html_by_js()函数
+
+主要利用了casperjs将加载完的html内容返回给python,然后利用xpath做解析。
+
+我将[casperjs](http://docs.casperjs.org/en/latest/index.html)和[phantomjs](http://phantomjs.org/)打包在了程序里面，windows环境下下载整个tieba文件夹即可使用。
+
+如需要在linux下使用，安装完casperjs和phantomjs之后，将他们的(path)/bin加入到/etc/profile里面的path环境变量中，应该就可以使用.
