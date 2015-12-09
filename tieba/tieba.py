@@ -41,6 +41,7 @@ class UserError(Exception):
 
 
 class User(object):
+    # todo:增加关注和取消关注功能
     def __init__(self, username):
         url = user_main(username)
         req = urllib2.Request(url, headers=HEADERS)
@@ -190,6 +191,7 @@ class User(object):
 
 
 class Tiezi(object):
+    # todo:将回复帖子的功能集成到这里.
     def __init__(self, num):
         self.url = MAIN_URL + "p/" + str(num) +"?see_lz=1&pn="
         self.text = requests.get(self.url+'1', headers=HEADERS).content
@@ -205,7 +207,7 @@ class Tiezi(object):
         """
         type:txt or photo
         默认下载前5页的内容
-        :param n:
+        :param :
         :return:
         """
         self.__mkdirfile(self.teinum)
@@ -394,7 +396,7 @@ class Tieba(object):
         x = self.soup.xpath('.//*[@id="thread_list"]/li')
         if not x:
             # raise TiebaError, u"此帖吧为js动态生成，暂不支持此函数"
-            self.get_html_by_js()
+            self.set_html_by_js()
             x = self.soup.xpath('.//*[@id="thread_list"]/li')
         ids = []
         for i in x:
@@ -410,7 +412,6 @@ class Tieba(object):
                 pass
         for i in ids:
             yield Tiezi(i)
-
     def sign(self):
         """
         签到函数
