@@ -1,7 +1,5 @@
 #-*- coding: UTF-8 -*-
-from lxml import etree
 from lxml.html import soupparser
-import urllib2
 import urllib
 from urlparse import urljoin
 import requests
@@ -10,12 +8,16 @@ import os
 import shutil
 import json
 import re
-from login import Login
+from login import Login2, HEADER
+import time
 
 HEADERS = {'content-type': 'application/json',
            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:22.0) Gecko/20100101 Firefox/22.0'}
 
 MAIN_URL = "http://tieba.baidu.com/"
+URL_BAIDU_SIGN = 'http://tieba.baidu.com/sign/add'
+URL_BAIDU_THREAD = 'http://tieba.baidu.com/f/commit/thread/add'
+URL_BAIDU_SIGN_ALL = 'http://tieba.baidu.com/tbmall/onekeySignin1'
 
 def user_main(name):
     name = name.decode('UTF-8').encode('gbk')
@@ -44,16 +46,10 @@ class User(object):
     # todo:增加关注和取消关注功能
     def __init__(self, username):
         url = user_main(username)
-        req = urllib2.Request(url, headers=HEADERS)
-        try:
-            resp = urllib2.urlopen(req)
-        except urllib2.URLError:
-            print u"打开个人网页失败!请检查网络"
-            sys.exit()
-        self.userHtml = etree.HTML(resp.read())
-        if self.userHtml.find('.//title').text == u"贴吧404":
-            print u"用户不存在,请确认"
-            sys.exit()
+        req = requests.get(url, headers=HEADERS, allow_redirects=False)
+        if int(req.status_code) != 200:
+            raise UserError, u"用户不存在"
+        self.userHtml = soupparser.fromstring(req.content)
 
     def get_followba(self):
         """
@@ -194,10 +190,11 @@ class Tiezi(object):
     # todo:将回复帖子的功能集成到这里.
     def __init__(self, num):
         self.url = MAIN_URL + "p/" + str(num) +"?see_lz=1&pn="
-        self.text = requests.get(self.url+'1', headers=HEADERS).content
-        self.soup = soupparser.fromstring(self.text)
-        if self._is404():
+        req = requests.get(self.url+'1', headers=HEADERS, allow_redirects=False)
+        if int(req.status_code) != 200:
             raise TieziError, u'输入的帖子错误或者已经被删除'
+        self.text = req.content
+        self.soup = soupparser.fromstring(self.text)
         self.teinum = num
 
     def __del__(self):
@@ -294,16 +291,6 @@ class Tiezi(object):
         num = self.soup.xpath('.//*[@id="thread_theme_5"]/div[1]/ul/li[2]/span[2]')
         return num[0].text
 
-    def _is404(self):
-        """
-        检查帖子是否存在或者删除
-        :return:
-        """
-        if self.soup.xpath('.//*[@class="page404"]'):
-            return True
-        else:
-            return False
-
     def get_title(self):
         """
         获取帖子标题
@@ -338,15 +325,18 @@ class Tieba(object):
         self.name = name
         url_items = [MAIN_URL, "f?kw=", name, "&fr=home"]
         self.url = ''.join(url_items)
-        self.html = requests.get(self.url, headers=HEADERS).content
+        req = requests.get(self.url, headers=HEADERS, allow_redirects=False)
+
+        if int(req.status_code) != 200:
+            raise TiebaError,'The tieba: "%s" have not exist!' % self.name
+
+        self.html = req.content
         try:
             self.soup = soupparser.fromstring(self.html)
         except ValueError:
-            self.soup = ''
-        if not self.__exist():
-            raise TiebaError,'The tieba: "%s" have not exist!' % self.name
+            self.set_html_by_js()
         if username and password:
-            self.login = Login(username, password)
+            self.login = Login2(username, password)
             self.login.login()
 
     def get_follownum(self):
@@ -412,13 +402,69 @@ class Tieba(object):
                 pass
         for i in ids:
             yield Tiezi(i)
+
+    def sign_all(self):
+        """
+        一键签到
+        :return:
+        """
+        url = "http://tieba.baidu.com/home/main?un=" + self.name + "&fr=ibaidu&ie=utf-8"
+        t = self.login.fetch(url)
+        tbs = re.findall("'tbs':'([\w]*)'",t)[0]
+        date = {
+            'ie': 'utf-8',
+            'tbs': tbs,
+        }
+        postdata = urllib.urlencode(date)
+        headers = HEADER
+        headers['Referer'] = 'http://tieba.baidu.com/'
+        headers['Content-Length'] = len(postdata)
+        r = self.login.postdata(URL_BAIDU_SIGN_ALL, postdata, headers)
+        if int(r.status_code) == 200:
+            print u"一键签到成功!"
+            return True
+        else:
+            return False
+
     def sign(self):
         """
         签到函数
-        20151208通过测试
+        20151217通过测试
         :return:
         """
-        return self.login.sign(self.name, self.url, self.html)
+        # return self.login.sign(self.name, self.url, self.html)
+        if not self.login.islogin():
+            raise UserError, u"用户还未登录或者登录失败"
+        if self.__issign(self.url):
+            return True
+        try:
+            tbs = re.findall("'tbs':'([\w]*)'", self.html)[0]
+        except:
+            tbs = re.findall(''''tbs': "([\w]*)"''', self.html)[0]
+        data = {'ie': 'utf-8',
+                'kw': self.name,
+                'tbs': tbs,
+                }
+        postdata = urllib.urlencode(data)
+        headers = HEADER
+        headers['Referer'] = self.url
+        headers['Cache-Control'] = 'no-cache'
+        r = self.login.postdata(URL_BAIDU_SIGN, postdata, headers)
+        if int(r.status_code) == 200:
+            return True
+        else:
+            return False
+        # if self.__issign(self.url):
+        #     return True
+        # else:
+        #     return False
+
+    def __issign(self, url):
+        content = self.login.fetch(url)
+        if re.findall('class="sign_keep_span"', content):
+            return True
+        else:
+            return False
 
     def follow(self):
         """
@@ -440,20 +486,66 @@ class Tieba(object):
 
     def thread(self, title, content):
         """
-        发帖函数
-        20151208通过测试
+        发帖函数,暂时只支持纯文本内容
+        20151217通过测试
         :param title: 标题
         :param content: 内容
         :return:
         """
-        self.login.create_tie(title, content, self.url, self.name)
-        return True
+        # self.login.create_tie(title, content, self.url, self.name)
+        if not self.login.islogin():
+            raise UserError, u"用户还未登录或者登录失败"
+        msg = self.__get_msg_tieba(self.url)
+        data = {'ie': 'utf-8',
+                'kw': self.name,
+                'fid': msg['fid'],
+                "tid": 0,
+                "vcode_md5": "",
+                "floor_num": 0,
+                "rich_text": 1,
+                "tbs": msg['tbs'],
+                "content": content,
+                "title": title,
+                "prefix": "",
+                "files": "[]",
+                "mouse_pwd": "1,15,10,22,15,1,1,1,0,15,15,1,10,1,14,0,15,20,0,12,10,8,22,15,9,1,15,10,14,13,14,10,13,49,9,20,8,20,9,20,8,20,9,20,8,20,9,20,8,20,9,20,8,49,9,8,10,11,10,10,49,9,13,11,14,20,0,14,12," + str(int(time.time()*10000)),
+                "mouse_pwd_t": msg["mouse_pwd_t"],
+                "mouse_pwd_isclick": 0,
+                "__type__": "thread"
+                }
+        postdata = urllib.urlencode(data)
+        hraders = HEADER
+        hraders['Referer'] = self.url
+        hraders['Accept-Language'] = 'zh-CN'
+        hraders['Host'] = 'tieba.baidu.com'
+        hraders['Content-Length'] = len(postdata)
+        hraders['X-Requested-With'] = 'XMLHttpRequest'
+        r = self.login.postdata(URL_BAIDU_THREAD, postdata, hraders)
+        if int(r.status_code) == 200:
+            print u"发帖成功"
+            # todo:未来增加返回新发的贴的地址功能
+            return True
+        else:
+            print u"发帖失败"
+            return False
+
+    def __get_msg_tieba(self, url):
+        dictory = {}
+        html = self.login.fetch(url)
+        try:
+            dictory['tbs'] = re.findall("'tbs':'([\w]*)'", html)[0]
+        except:
+            dictory['tbs'] = re.findall(''''tbs': "([\w]*)"''', html)[0]
+        dictory['fid'] = re.findall('"forum_id":([0-9]*),', html)[0]
+        dictory["mouse_pwd_t"] = int(time.time())*1000
+        return dictory
 
     def __exist(self):
         """
         判断贴吧是否存在
         :return:
         """
+        # todo:在下个版本删除
         # if self.soup.xpath('.//*[@class="sign_today_date"]'):
         #     return True
         # else:
@@ -498,5 +590,6 @@ class Tieba(object):
         self.soup = soupparser.fromstring(self.html)
 
 
+
 if __name__ == '__main__':
-    pass
+   pass

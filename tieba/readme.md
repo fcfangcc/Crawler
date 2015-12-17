@@ -1,4 +1,7 @@
 ## tieba.py使用方法:
+##### 如需使用登录操作，目前仅支持用百度用户名密码登录,手机用户暂不支持!
+
+参考的[zhihu-python](https://github.com/egrcc/zhihu-python/blob/master/auth.py)里面的登录函数进行了修改(现已支持输入验证码)
 
     #如果有中文，在winodws的命令行下会报错，建议使用IDE或者linux环境
     #查看用户信息(如果查看用户开放权限):
@@ -58,15 +61,20 @@ type有两种类型:txt,photo.
 
 现在貌似百度在某些贴吧测试，估计后面贴吧也会变成js动态生成。
 
-主要增加内容：贴吧签到,贴吧发表新帖
+主要增加内容：贴吧签到,贴吧发表新帖,贴吧一键签到
 
     from tieba import Tieba
     #如:Tieba("杭州","admin","123456")
     tieba = Tieba(name, username,password)
+    
     #签到
     tieba.sign()
+    #一键签到
+    tieba.sign_all()
+    
     #发帖测试:tieba.thread("测试","hello,word")
     tieba.thread(title, content)
+    
     #获取贴吧首页的帖子,返回一个Tiezi类的生成器
     ties = tieba.get_ties()
     for tie in ties:
