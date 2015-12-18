@@ -1,7 +1,15 @@
 ## tieba.py使用方法:
 ##### 如需使用登录操作，目前仅支持用百度用户名密码登录,手机用户暂不支持!
+##### python2.7.10，windows下和centos6.7下测试通过，其它平台不确定.
+##### 增加了对js生成的贴吧首页的支持:TieBa().set_html_by_js()函数
 
-参考的[zhihu-python](https://github.com/egrcc/zhihu-python/blob/master/auth.py)里面的登录函数进行了修改(现已支持输入验证码)
+主要利用了casperjs将加载完的html内容返回给python,然后利用xpath做解析。
+
+我将[casperjs](http://docs.casperjs.org/en/latest/index.html)和[phantomjs](http://phantomjs.org/)打包在了程序里面，windows环境下下载整个tieba文件夹即可正常使用。
+
+如需要在linux下<font color=red>完美使用</font>，安装完casperjs和phantomjs之后，将他们的(path)/bin<font color=red>加入到/etc/profile里面的path环境变量</font>中，就可以正常使用.
+
+参考的[zhihu-python](https://github.com/egrcc/zhihu-python/blob/master/auth.py)里面的登录函数进行了修改(<font color=red>现已支持手动输入验证码</font>,cookie功能还有问题)
 
     #如果有中文，在winodws的命令行下会报错，建议使用IDE或者linux环境
     #查看用户信息(如果查看用户开放权限):
@@ -85,10 +93,4 @@ type有两种类型:txt,photo.
 
 关注和取消关注，还在测试中.
 
-#### 增加了对js生成的贴吧首页的支持:TieBa().set_html_by_js()函数
 
-主要利用了casperjs将加载完的html内容返回给python,然后利用xpath做解析。
-
-我将[casperjs](http://docs.casperjs.org/en/latest/index.html)和[phantomjs](http://phantomjs.org/)打包在了程序里面，windows环境下下载整个tieba文件夹即可使用。
-
-如需要在linux下使用，安装完casperjs和phantomjs之后，将他们的(path)/bin加入到/etc/profile里面的path环境变量中，应该就可以使用.

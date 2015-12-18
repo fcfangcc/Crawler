@@ -34,7 +34,7 @@ class Js_Html(object):
             self.__set_env(mydir)
             commend = "casperjs %s" % jsdir
         else:
-            # todo:待以后测试linux环境下问题。
+            # 已经测试通过
             commend = "source /etc/profile && casperjs %s" % jsdir
         # print commend
         result = os.popen(commend)
