@@ -152,15 +152,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # login = Fetcher(username='', pwd='')
-    # login.login()
-    # url = "http://weibo.cn/xiaocang520"
-    # text = login.fetch(url)
-    # soup = soupparser.fromstring(text)
-    # for i in soupparser.fromstring(text).xpath(".//div[@class='c']"):print i.attrib
-    # with open('namei.txt','w') as f:
-    #     f.write(text)
     pass
-    # http://weibo.cn/1818471621/profile
-    # http://weibo.cn/xiayike233
-    #  http://weibo.cn/u/2751220871

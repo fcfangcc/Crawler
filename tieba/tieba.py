@@ -18,6 +18,12 @@ MAIN_URL = "http://tieba.baidu.com/"
 URL_BAIDU_SIGN = 'http://tieba.baidu.com/sign/add'
 URL_BAIDU_THREAD = 'http://tieba.baidu.com/f/commit/thread/add'
 URL_BAIDU_SIGN_ALL = 'http://tieba.baidu.com/tbmall/onekeySignin1'
+URL_BAIDU_USER_FOLLOW = 'http://tieba.baidu.com/home/post/follow'
+URL_BAIDU_USER_UNFOLLOW = 'http://tieba.baidu.com/home/post/unfollow'
+URL_BAIDU_REPLY = 'http://tieba.baidu.com/f/commit/post/add'
+URL_BAIDU_COLLECTION = 'http://tieba.baidu.com/i/submit/open_storethread'
+URL_BAIDU_UNCOLLECTION = 'http://tieba.baidu.com/i/submit/cancel_storethread'
+
 
 def user_main(name):
     name = name.decode('UTF-8').encode('gbk')
@@ -43,13 +49,11 @@ class UserError(Exception):
 
 
 class User(object):
-    # todo:增加关注和取消关注功能
-    def __init__(self, username):
-        url = user_main(username)
-        req = requests.get(url, headers=HEADERS, allow_redirects=False)
-        if int(req.status_code) != 200:
-            raise UserError, u"用户不存在"
-        self.userHtml = soupparser.fromstring(req.content)
+    def __init__(self, user, username=None, password=None):
+        self.set_user(user)
+        if username and password:
+            self.login = Login2(username, password)
+            self.login.login()
 
     def get_followba(self):
         """
@@ -175,6 +179,7 @@ class User(object):
         :param num:
         :return:
         """
+        self.__hide_status()
         if self.userHtml.find('.//*[@id="container"]/div[1]/div/div[3]').text:
             return u"该用户已隐藏个人动态"
         times = self.userHtml.findall('.//*[@id="container"]/div[1]/div/div[3]/ul/div/div[1]')
@@ -185,17 +190,71 @@ class User(object):
         replydict = dict([(i, dict([('reply', replys[i].text), ('title', titles[i].text), ('name', names[i].text), ('time',times[i].text)])) for i in xrange(num)])
         return replydict
 
+    def __hide_status(self):
+        if 'his_thread_blank' in self.req.content:
+            raise UserError,u'用户已经隐藏个人状态,无法获取该信息.'
+        else:
+            return False
+
+    def set_user(self, user):
+        """
+        更改目标用户昵称,继续进行挖掘数据.
+        :param user:
+        :return:
+        """
+        self.user = user
+        self.url = user_main(user)
+        self.req = requests.get(self.url, headers=HEADERS, allow_redirects=False)
+        if int(self.req.status_code) != 200:
+            raise UserError, u"用户不存在"
+        self.userHtml = soupparser.fromstring(self.req.content)
+
+
+    def __follow_templates(self, post_url):
+        """
+        关注/取消关注数据
+        :return:
+        """
+        t = self.login.fetch(self.url)
+        tbs = re.findall("'tbs':'([\w]*)'", t)[0]
+        un = self.user
+        data = {
+            'ie': 'utf-8',
+            'un': un,
+            'tbs': tbs,
+        }
+        postdata = urllib.urlencode(data)
+        headers = HEADER
+        headers['Content-Length'] = len(postdata)
+        headers['Referer'] = self.url
+        r = self.login.postdata(post_url, postdata, headers)
+        # print r.status_code
+        # print r.headers
+        return int(r.status_code)
+
+    def unfollow(self):
+        status = self.__follow_templates(URL_BAIDU_USER_UNFOLLOW)
+        if status == 200:
+            return True
+        else:
+            print(u"取消关注用户:'%s'失败!请登录后重试或者联系作者!" % self.user)
+            return False
+
+    def follow(self):
+        status = self.__follow_templates(URL_BAIDU_USER_FOLLOW)
+        if status == 200:
+            return True
+        else:
+            print(u"关注用户:'%s'失败!请登录后重试或者联系作者!" % self.user)
+            return False
+
 
 class Tiezi(object):
-    # todo:将回复帖子的功能集成到这里.
-    def __init__(self, num):
-        self.url = MAIN_URL + "p/" + str(num) +"?see_lz=1&pn="
-        req = requests.get(self.url+'1', headers=HEADERS, allow_redirects=False)
-        if int(req.status_code) != 200:
-            raise TieziError, u'输入的帖子错误或者已经被删除'
-        self.text = req.content
-        self.soup = soupparser.fromstring(self.text)
-        self.teinum = num
+    def __init__(self, num, username=None, password=None):
+        self.set_tiezi(num)
+        if username and password:
+            self.login = Login2(username, password)
+            self.login.login()
 
     def __del__(self):
         pass
@@ -207,7 +266,7 @@ class Tiezi(object):
         :param :
         :return:
         """
-        self.__mkdirfile(self.teinum)
+        self.__mkdirfile(self.tienum)
         num = int(self.getnum())
         print u'本帖子楼主共有%d页发表!' % num
         if start > end:
@@ -237,7 +296,7 @@ class Tiezi(object):
         txts = soup.xpath('.//div[@class="d_post_content j_d_post_content "]/text()')
         if not txts:
             txts = soup.xpath('.//div[@class="d_post_content j_d_post_content  clearfix"]/text()')
-        with open("%s/text.txt" % self.teinum, "a+") as f:
+        with open("%s/text.txt" % self.tienum, "a+") as f:
             f.writelines(''.join(txts).encode('utf8'))
         f.close()
 
@@ -259,7 +318,7 @@ class Tiezi(object):
         for photo in photos:
             pbar.update(i)
             jpgurl = photo.attrib['src']
-            self.__download_jpg(jpgurl, '%s/%d_%d.jpg' % (self.teinum, page, i))
+            self.__download_jpg(jpgurl, '%s/%d_%d.jpg' % (self.tienum, page, i))
             i += 1
         pbar.finish()
 
@@ -304,7 +363,7 @@ class Tiezi(object):
         获取帖子作者
         :return:
         """
-        title = re.findall('author:"(.*?)"', self.text)
+        title = re.findall('author: "(.*?)"', self.text)
         return title[0]
 
     def get_reply_num(self):
@@ -318,23 +377,115 @@ class Tiezi(object):
     def get_url(self):
         return self.url
 
+    def reply(self, response):
+        """
+        回复本贴,只支持文本格式的内容
+        :param response:
+        :return:
+        """
+        # if not self.login.islogin():
+        #     raise UserError, u"用户还未登录或者登录失败!"
+        url = "http://tieba.baidu.com/p/" + str(self.tienum) + "/submit"
+        msg = self.__get_msg_reply(url)
+        data = {'ie': 'utf-8',
+                'content': response,
+                'kw': msg['kw'].encode('utf-8'),
+                'fid': msg['fid'],
+                "tid": msg['tid'],
+                "vcode_md5": "",
+                "floor_num": msg['floor_num'],
+                "rich_text": 1,
+                "tbs": msg['tbs'],
+                "files": "[]",
+                "sign_id": msg['sign_id'],
+                "mouse_pwd": "23,21,16,15,18,20,23,27,42,18,15,19,15,18,15,19,15,18,15,19,15,18,15,19,15,18,15,19,42,18,16,22,26,19,42,18,26,17,19,15,18,19,27,19," + str(int(time.time()*10000)),
+                "mouse_pwd_t": msg["mouse_pwd_t"],
+                "mouse_pwd_isclick": 0,
+                "__type__": "reply"
+                }
+        postdata = urllib.urlencode(data)
+        headers = HEADER
+        headers['Referer'] = url
+        r = self.login.postdata(URL_BAIDU_REPLY, postdata, HEADER)
+        if int(r.status_code) == 200:
+            return True
+        else:
+            print(u"回复评论失败！请登录后重试或联系作者修改")
+
+    def __get_msg_reply(self, url):
+        """
+        获取post数据所需要的各种参数，通过游览器查看得出
+        唯一有疑问的是mouse_pwd这个参数，在我电脑上实验这个参数可以顺利评论帖子
+        如出现不能post可根据你游览器截获到的参数修改
+        :param url:
+        :return:
+        """
+        dictory = {}
+        text = self.login.fetch(url)
+        text2 = self.login.fetch("http://tieba.baidu.com/f/user/sign_list?t=" + str(int(time.time()*10000)))
+        soup = soupparser.fromstring(text)
+        msg = soup.xpath(".//*[@type='hidden']")[0]
+        dictory['kw'] = msg.attrib['value']
+        dictory['floor_num'] = re.findall("reply_num:([0-9]*),", text)[0]
+        dictory['tid'] = re.findall("thread_id:([0-9]*),", text)[0]
+        dictory['fid'] = re.findall('"forum_id":([0-9]*),', text)[0]
+        dictory['tbs'] = re.findall('"tbs": "([\w]*)",', text)[0]
+        dictory["sign_id"] = json.loads(text2.decode("gbk"))['data']['used_id']
+        dictory["mouse_pwd_t"] = int(time.time())
+        return dictory
+
+    def __collection_templates(self, post_url):
+        """
+        收藏本贴
+        :return:
+        """
+        tid = self.tienum
+        url = MAIN_URL + "p/" + str(self.tienum)
+        t = self.login.fetch(url)
+        tbs = re.findall("'tbs':'([\w]*)'",t)[0]
+        data = {
+            'tid': tid,
+            'type': 0,
+            'datatype': 'json',
+            'ie': 'utf-8',
+            'tbs': tbs,
+        }
+        postdata = urllib.urlencode(data)
+        headers = HEADER
+        headers['Referer'] = url
+        headers['Content-Length'] = len(postdata)
+        r = self.login.postdata(post_url, postdata, headers)
+        return int(r.status_code)
+
+    def collection(self):
+        status = self.__collection_templates(URL_BAIDU_COLLECTION)
+        if status == 200:
+            return True
+        else:
+            print(u"收藏失败,请登录后重试或者联系作者")
+            return False
+
+    def uncollection(self):
+        status = self.__collection_templates(URL_BAIDU_USER_UNFOLLOW)
+        if status == 200:
+            return True
+        else:
+            print(u"取消收藏失败,请登录后重试或者联系作者")
+            return False
+
+    def set_tiezi(self, num):
+        self.url = MAIN_URL + "p/" + str(num) +"?see_lz=1&pn="
+        req = requests.get(self.url+'1', headers=HEADERS, allow_redirects=False)
+        if int(req.status_code) != 200:
+            raise TieziError, u'输入的帖子错误或者已经被删除'
+        self.text = req.content
+        self.soup = soupparser.fromstring(self.text)
+        self.tienum = num
+
 
 class Tieba(object):
     def __init__(self, name, username=None, password=None):
-        # self.name = repr(name.decode('UTF-8').encode('gbk')).replace("\'", "").replace("\\x", "%")
-        self.name = name
-        url_items = [MAIN_URL, "f?kw=", name, "&fr=home"]
-        self.url = ''.join(url_items)
-        req = requests.get(self.url, headers=HEADERS, allow_redirects=False)
-
-        if int(req.status_code) != 200:
-            raise TiebaError,'The tieba: "%s" have not exist!' % self.name
-
-        self.html = req.content
-        try:
-            self.soup = soupparser.fromstring(self.html)
-        except ValueError:
-            self.set_html_by_js()
+        self.set_tieba(name)
         if username and password:
             self.login = Login2(username, password)
             self.login.login()
@@ -421,9 +572,9 @@ class Tieba(object):
         headers['Content-Length'] = len(postdata)
         r = self.login.postdata(URL_BAIDU_SIGN_ALL, postdata, headers)
         if int(r.status_code) == 200:
-            print u"一键签到成功!"
             return True
         else:
+            print u"一键签到失败,登录后重试或者联系作者!"
             return False
 
     def sign(self):
@@ -432,7 +583,7 @@ class Tieba(object):
         20151217通过测试
         :return:
         """
-        # todo:判断是否登录打算用装饰器来实现，因为很多函数都要用到.
+        # todo(@fcfangcc):判断是否登录打算用装饰器来实现，因为很多函数都要用到.
         if not self.login.islogin():
             raise UserError, u"用户还未登录或者登录失败"
         if self.__issign(self.url):
@@ -472,7 +623,7 @@ class Tieba(object):
         还在测试
         :return:
         """
-        # todo:未来添加
+        # todo(@fcfangcc):未来添加
         pass
 
     def remove_follow(self):
@@ -481,8 +632,7 @@ class Tieba(object):
         还在测试
         :return:
         """
-        # todo:未来添加
-        # return self.login.remove_follow(self.name, self.url, self.html)
+        # todo(@fcfangcc):未来添加
         pass
 
     def thread(self, title, content):
@@ -546,11 +696,6 @@ class Tieba(object):
         判断贴吧是否存在
         :return:
         """
-        # todo:在下个版本删除
-        # if self.soup.xpath('.//*[@class="sign_today_date"]'):
-        #     return True
-        # else:
-        #     return False
         if re.findall('class="sign_today_date">', self.html):
             return True
         else:
@@ -586,11 +731,26 @@ class Tieba(object):
         利用casperjs来加载贴吧首页，并获得解析之后的HTML内容
         :return:
         """
+        print u"正在启用casperjs和phantomjs进行解析,请等待......"
         from jshtml.jshtml import Js_Html
         self.html = Js_Html().get_html(self.url)
         self.soup = soupparser.fromstring(self.html)
 
+    def set_tieba(self, name):
+        self.name = name
+        url_items = [MAIN_URL, "f?kw=", name, "&fr=home"]
+        self.url = ''.join(url_items)
+        req = requests.get(self.url, headers=HEADERS, allow_redirects=False)
+
+        if int(req.status_code) != 200:
+            raise TiebaError,'The tieba: "%s" have not exist!' % self.name
+
+        self.html = req.content
+        try:
+            self.soup = soupparser.fromstring(self.html)
+        except ValueError:
+            self.set_html_by_js()
 
 
 if __name__ == '__main__':
-   pass
+    pass

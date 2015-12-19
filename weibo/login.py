@@ -80,8 +80,9 @@ def login(mobile, password):
     sleep(5)
 
 if __name__ == '__main__':
-    login('', '')
+    # login('', '')
     # 后面你可以使用getData函数爬取你想要的界面,如爬取某人的首页然后写入文件内
-    text = getData('http://weibo.com/u/2316505592')
-    with open('namei.txt','w') as f:
-        f.write(text.replace('\\', ''))
+    # text = getData('http://weibo.com/u/2316505592')
+    # with open('namei.txt','w') as f:
+    #     f.write(text.replace('\\', ''))
+    pass

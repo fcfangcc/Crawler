@@ -1,6 +1,5 @@
 # -*- coding: utf8 -*-
 import requests
-from lxml.html import soupparser
 import re
 import platform, os
 import cookielib
@@ -133,7 +132,8 @@ class Login2(object):
         image_name = u"verify." + r.headers['content-type'].split("/")[1]
         open(image_name,"wb").write(r.content)
 
-        print u"正在调用外部程序渲染验证码..."
+        print u"正在调用外部程序渲染验证码...\n" \
+              u"或者手动打开代码目录下verify.*文件查看并填写验证码!"
         if platform.system() == "Linux":
             print u"Command: xdg-open %s &" % image_name
             os.system("xdg-open %s &" % image_name)
@@ -154,8 +154,7 @@ class Login2(object):
             os.system("open %s &" % image_name)
         else:
             print u"我们无法探测你的作业系统，请自行打开验证码 %s 文件，并输入验证码:" % os.path.join(os.getcwd(), image_name)
-
-        verifycode = raw_input("请输入验证码:")
+        verifycode = raw_input(u"Please enter the captcha:")
         return self.__check_captcha(verifycode, codeString)
 
     def __check_captcha(self,verifycode, codeString):
