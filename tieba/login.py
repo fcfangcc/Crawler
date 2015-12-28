@@ -6,7 +6,8 @@ import cookielib
 import json
 import urllib
 import time
-
+requests.packages.urllib3.disable_warnings()
+# todo:修改windows命令行下登录失败的问题,还未定位到问题原因
 def get_tt():
     return str(int(time.time()*1000))
 
@@ -45,7 +46,7 @@ class Login2(object):
         URL_BAIDU_TOKEN = 'https://passport.baidu.com/v2/api/?getapi&tpl=pp&apiver=v3&class=login'
         URL_BAIDU_LOGIN = 'https://passport.baidu.com/v2/api/?login'
 
-        tokenReturn = requests.get(URL_BAIDU_TOKEN).content
+        tokenReturn = requests.get(URL_BAIDU_TOKEN, verify=False).content
         matchVal = re.search(u'"token" : "(?P<tokenVal>.*?)"', tokenReturn)
         self.tokenVal = matchVal.group('tokenVal')
 
@@ -69,7 +70,7 @@ class Login2(object):
         header['Accept-Language'] = 'zh-CN,zh;q=0.8'
         header['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.72 Safari/537.36'
         header['Content-Type'] = 'application/x-www-form-urlencoded'
-        r = requests.post(URL_BAIDU_LOGIN, data=params, headers=header)
+        r = requests.post(URL_BAIDU_LOGIN, data=params, headers=header, verify=False)
         self.BAIDU_CHANGE_CAP = "https://passport.baidu.com/v2/?reggetcodestr&token=" + self.tokenVal + \
             '&tpl=mn&apiver=v3&tt=' + get_tt() + '&fr=login'
         if int(r.status_code) != 200:
@@ -78,17 +79,17 @@ class Login2(object):
         if not self.islogin():
             postData['verifycode'], postData['codestring'] = self.__download_captcha()
             params = urllib.urlencode(postData)
-            r = requests.post(URL_BAIDU_LOGIN, data=params, headers=header)
+            r = requests.post(URL_BAIDU_LOGIN, data=params, headers=header, verify=False)
         if self.islogin():
         # requests.cookies.save()
             print u"登录成功"
             return True
         else:
-            print u"登录发生未知错误，可能是百度修改了登录方式!"
-            return False
+            raise NetworkError, u"Username or Password error! Please check!"
+
 
     def fetch(self, url):
-        r = requests.get(url, allow_redirects=False)
+        r = requests.get(url, allow_redirects=False, verify=False)
         return r.content
 
     def islogin(self):
@@ -97,7 +98,7 @@ class Login2(object):
         header['Referer'] = 'https://www.baidu.com/'
 
         url = "http://i.baidu.com/"
-        r = requests.get(url, headers=header, allow_redirects=False)
+        r = requests.get(url, headers=header, allow_redirects=False, verify=False)
         status_code = int(r.status_code)
         if status_code == 302:
             return False
@@ -112,7 +113,7 @@ class Login2(object):
         获取百度登录验证码地址
         :return:
         """
-        r = requests.get(self.BAIDU_CHANGE_CAP, headers=HEADER)
+        r = requests.get(self.BAIDU_CHANGE_CAP, headers=HEADER, verify=False)
         status_code = int(r.status_code)
         # print r.content
         if status_code == 200:
@@ -126,7 +127,7 @@ class Login2(object):
         """
         codeString = self.__change_cap_url()
         url = BAIDU_CAT_URL_MAIN + codeString
-        r = requests.get(url, headers=HEADER)
+        r = requests.get(url, headers=HEADER, verify=False)
         if int(r.status_code) != 200:
             raise NetworkError(), u"验证码请求失败"
         image_name = u"verify." + r.headers['content-type'].split("/")[1]
@@ -151,7 +152,7 @@ class Login2(object):
         elif platform.system() == "NetBSD":
             os.system("open %s &" % image_name)
         elif platform.system() == "Windows":
-            os.system("open %s &" % image_name)
+            os.system("%s" % image_name)
         else:
             print u"我们无法探测你的作业系统，请自行打开验证码 %s 文件，并输入验证码:" % os.path.join(os.getcwd(), image_name)
         verifycode = raw_input(u"Please enter the captcha:")
@@ -167,7 +168,7 @@ class Login2(object):
         check_url = "https://passport.baidu.com/v2/?checkvcode&token=" \
                     + self.tokenVal + "&tpl=mn&apiver=v3&tt="+get_tt()+"&verifycode="+verifycode+"&codestring="+ codeString + \
                     "&callback=bd__cbs__r4gm19"
-        r = requests.get(check_url, headers=HEADER)
+        r = requests.get(check_url, headers=HEADER, verify=False)
         # print r.content
         # print check_url
         if "success" not in r.content:
@@ -177,7 +178,7 @@ class Login2(object):
             return verifycode, codeString
 
     def postdata(self, url, param, headers):
-        req = requests.post(url, data=param, headers=headers)
+        req = requests.post(url, data=param, headers=headers, verify=False)
         return req
 
 

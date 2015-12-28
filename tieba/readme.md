@@ -1,8 +1,8 @@
 # tieba.py使用方法:
 ### 注意:所有方法如果正确执行默认返回True，不会提示成功执行.如果出错返回False同时会有信息输出.
 ##### 如需使用登录操作，目前仅支持用百度用户名密码登录,手机用户暂不支持!
-##### python2.7.10，windows下Pycharm(在cmd窗口显示会有乱码，不建议)和centos6.7下测试通过，其它平台不确定.
-##### 增加了对js生成的贴吧首页的支持:TieBa().set_html_by_js()函数
+##### python2.7.10，windows下Pycharm和centos6.7下测试通过，其它平台不确定.(<font color=red>切勿使用windows命令行调用类</font>，在utf-8文件里调用可以)
+##### 增加了对js生成的贴吧首页的支持:Tieba().set_html_by_js()函数
 
 主要利用了casperjs将加载完的html内容返回给python,然后利用xpath做解析。
 
@@ -23,7 +23,7 @@
     age = user.get_age()
 获取关注的贴吧以及等级，返回字典类型{u'\u6d59\u6c5f\u5de5\u5546\u5927\u5b66': 'lv11', u'\u5206\u624b': 'lv11', u'\u8bdb\u4ed9': 'lv11', 'lol': 'lv11'}
 
-    followba = user.get_followBA()
+    followba = user.get_followba()
 
 get_ifollow,获取我关注的用户,这里type有三个可选参数：all,num,users.
 
@@ -61,7 +61,7 @@ get_ifollow,获取我关注的用户,这里type有三个可选参数：all,num,u
     #获取楼主的页数(获取其它基本信息类似)
     pagenum = tiezi.getnum()
     
-    tiezi.downloadLZ(type=type,start=1,end=5)
+    tiezi.downloadlz(type=type,start=1,end=5)
     #下载帖子从start页到end页的内容.
     #type有两种类型:txt,photo.
     #如果选择txt,将楼主发表的帖子的文本内容下载到一个txt文件中以供阅读(适用于连载的那些).
@@ -77,6 +77,7 @@ get_ifollow,获取我关注的用户,这里type有三个可选参数：all,num,u
     tiezi.collection()
     tiezi.uncollection()
     tiezi.set_tiezi('帖子号码')
+如果需要回复url信息,请看[issues2](https://github.com/fcfangcc/Crawler/issues/2) 
 
 ## Tieba类使用方法:
 
@@ -87,8 +88,8 @@ get_ifollow,获取我关注的用户,这里type有三个可选参数：all,num,u
 其中获取贴吧基本信息的函数和Tiezi,User类基本相同(并且不需要登录),不做介绍.
 
     from tieba import Tieba
-    #如:Tieba("杭州","admin","123456")
-    tieba = Tieba(name, username,password)
+    #如:Tieba("杭州",username="admin",password="123456")
+    tieba = Tieba(name, username=username,password=password)
     
     #签到
     tieba.sign()

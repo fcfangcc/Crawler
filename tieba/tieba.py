@@ -10,6 +10,7 @@ import json
 import re
 from login import Login2, HEADER
 import time
+requests.packages.urllib3.disable_warnings()
 
 HEADERS = {'content-type': 'application/json',
            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:22.0) Gecko/20100101 Firefox/22.0'}
@@ -31,6 +32,16 @@ def user_main(name):
     url = url.replace("\'", "").replace("\\x", "%")
     return url
 
+def is_login(func):
+    def _func(*args, **kwargs):
+        self = args[0]
+        try:
+            if self.username and self.password:
+                func(*args, **kwargs)
+        except:
+            raise UserError,u'Please input username and password!'
+    return _func
+
 
 class InputErrorStr(Exception):
     pass
@@ -50,6 +61,8 @@ class UserError(Exception):
 
 class User(object):
     def __init__(self, user, username=None, password=None):
+        self.username = username
+        self.password = password
         self.set_user(user)
         if username and password:
             self.login = Login2(username, password)
@@ -115,7 +128,7 @@ class User(object):
         else:
             return u"没有人关注此用户"
         followmesurl = urljoin(MAIN_URL, followme_url.attrib['href'])
-        soup = soupparser.fromstring(requests.get(followmesurl).content)
+        soup = soupparser.fromstring(requests.get(followmesurl, verify=False).content)
         page_next = soup.xpath('.//*[@class="next"]')
         names = soup.xpath('.//*[@id="search_list"]/div/div[2]/span[1]/a')
         if type == 'num':
@@ -124,7 +137,7 @@ class User(object):
             usermsg = dict([(name.text, urljoin(MAIN_URL, name.attrib['href'])) for name in names])
             while page_next:
                 url_next = urljoin(MAIN_URL, page_next[0].attrib['href'])
-                soup_next = soupparser.fromstring(requests.get(url_next).content)
+                soup_next = soupparser.fromstring(requests.get(url_next, verify=False).content)
                 names = soup_next.xpath('.//*[@id="search_list"]/div/div[2]/span[1]/a')
                 for name in names:
                     usermsg[name.text] = urljoin(MAIN_URL, name.attrib['href'])
@@ -152,7 +165,7 @@ class User(object):
         else:
             return u"此用户未关注任何人"
         ifollowurl = urljoin(MAIN_URL, ifollow_url.attrib['href'])
-        soup = soupparser.fromstring(requests.get(ifollowurl).content)
+        soup = soupparser.fromstring(requests.get(ifollowurl, verify=False).content)
         page_next = soup.xpath('.//*[@class="next"]')
         names = soup.xpath('.//*[@id="search_list"]/div/div[2]/span[1]/a')
         if type == 'num':
@@ -161,7 +174,7 @@ class User(object):
             usermsg = dict([(name.text, urljoin(MAIN_URL, name.attrib['href'])) for name in names])
             while page_next:
                 url_next = urljoin(MAIN_URL, page_next[0].attrib['href'])
-                soup_next = soupparser.fromstring(requests.get(url_next).content)
+                soup_next = soupparser.fromstring(requests.get(url_next, verify=False).content)
                 names = soup_next.xpath('.//*[@id="search_list"]/div/div[2]/span[1]/a')
                 for name in names:
                     usermsg[name.text] = urljoin(MAIN_URL, name.attrib['href'])
@@ -204,11 +217,10 @@ class User(object):
         """
         self.user = user
         self.url = user_main(user)
-        self.req = requests.get(self.url, headers=HEADERS, allow_redirects=False)
+        self.req = requests.get(self.url, headers=HEADERS, allow_redirects=False, verify=False)
         if int(self.req.status_code) != 200:
             raise UserError, u"用户不存在"
         self.userHtml = soupparser.fromstring(self.req.content)
-
 
     def __follow_templates(self, post_url):
         """
@@ -232,6 +244,7 @@ class User(object):
         # print r.headers
         return int(r.status_code)
 
+    @is_login
     def unfollow(self):
         status = self.__follow_templates(URL_BAIDU_USER_UNFOLLOW)
         if status == 200:
@@ -240,6 +253,7 @@ class User(object):
             print(u"取消关注用户:'%s'失败!请登录后重试或者联系作者!" % self.user)
             return False
 
+    @is_login
     def follow(self):
         status = self.__follow_templates(URL_BAIDU_USER_FOLLOW)
         if status == 200:
@@ -251,6 +265,8 @@ class User(object):
 
 class Tiezi(object):
     def __init__(self, num, username=None, password=None):
+        self.username = username
+        self.password = password
         self.set_tiezi(num)
         if username and password:
             self.login = Login2(username, password)
@@ -277,7 +293,7 @@ class Tiezi(object):
             sys.exit()
         num = num if num < end else end
         for i in xrange(start-1, num):
-            soup = soupparser.fromstring(requests.get(self.url+str(i+1)).content)
+            soup = soupparser.fromstring(requests.get(self.url+str(i+1), verify=False).content)
             if type == "txt":
                 self.__get_lz_txt(i+1, soup)
             elif type == "photo":
@@ -377,14 +393,13 @@ class Tiezi(object):
     def get_url(self):
         return self.url
 
+    @is_login
     def reply(self, response):
         """
         回复本贴,只支持文本格式的内容
         :param response:
         :return:
         """
-        # if not self.login.islogin():
-        #     raise UserError, u"用户还未登录或者登录失败!"
         url = "http://tieba.baidu.com/p/" + str(self.tienum) + "/submit"
         msg = self.__get_msg_reply(url)
         data = {'ie': 'utf-8',
@@ -457,6 +472,7 @@ class Tiezi(object):
         r = self.login.postdata(post_url, postdata, headers)
         return int(r.status_code)
 
+    @is_login
     def collection(self):
         status = self.__collection_templates(URL_BAIDU_COLLECTION)
         if status == 200:
@@ -465,6 +481,7 @@ class Tiezi(object):
             print(u"收藏失败,请登录后重试或者联系作者")
             return False
 
+    @is_login
     def uncollection(self):
         status = self.__collection_templates(URL_BAIDU_USER_UNFOLLOW)
         if status == 200:
@@ -475,7 +492,7 @@ class Tiezi(object):
 
     def set_tiezi(self, num):
         self.url = MAIN_URL + "p/" + str(num) +"?see_lz=1&pn="
-        req = requests.get(self.url+'1', headers=HEADERS, allow_redirects=False)
+        req = requests.get(self.url+'1', headers=HEADERS, allow_redirects=False, verify=False)
         if int(req.status_code) != 200:
             raise TieziError, u'输入的帖子错误或者已经被删除'
         self.text = req.content
@@ -485,6 +502,8 @@ class Tiezi(object):
 
 class Tieba(object):
     def __init__(self, name, username=None, password=None):
+        self.username = username
+        self.password = password
         self.set_tieba(name)
         if username and password:
             self.login = Login2(username, password)
@@ -554,6 +573,7 @@ class Tieba(object):
         for i in ids:
             yield Tiezi(i)
 
+    @is_login
     def sign_all(self):
         """
         一键签到
@@ -577,15 +597,13 @@ class Tieba(object):
             print u"一键签到失败,登录后重试或者联系作者!"
             return False
 
+    @is_login
     def sign(self):
         """
         签到函数
         20151217通过测试
         :return:
         """
-        # todo(@fcfangcc):判断是否登录打算用装饰器来实现，因为很多函数都要用到.
-        if not self.login.islogin():
-            raise UserError, u"用户还未登录或者登录失败"
         if self.__issign(self.url):
             return True
         try:
@@ -617,6 +635,7 @@ class Tieba(object):
         else:
             return False
 
+    @is_login
     def follow(self):
         """
         关注函数
@@ -626,6 +645,7 @@ class Tieba(object):
         # todo(@fcfangcc):未来添加
         pass
 
+    @is_login
     def remove_follow(self):
         """
         取消关注函数
@@ -635,6 +655,7 @@ class Tieba(object):
         # todo(@fcfangcc):未来添加
         pass
 
+    @is_login
     def thread(self, title, content):
         """
         发帖函数,暂时只支持纯文本内容
@@ -643,9 +664,6 @@ class Tieba(object):
         :param content: 内容
         :return:
         """
-        # self.login.create_tie(title, content, self.url, self.name)
-        if not self.login.islogin():
-            raise UserError, u"用户还未登录或者登录失败"
         msg = self.__get_msg_tieba(self.url)
         data = {'ie': 'utf-8',
                 'kw': self.name,
@@ -740,7 +758,7 @@ class Tieba(object):
         self.name = name
         url_items = [MAIN_URL, "f?kw=", name, "&fr=home"]
         self.url = ''.join(url_items)
-        req = requests.get(self.url, headers=HEADERS, allow_redirects=False)
+        req = requests.get(self.url, headers=HEADERS, allow_redirects=False, verify=False)
 
         if int(req.status_code) != 200:
             raise TiebaError,'The tieba: "%s" have not exist!' % self.name
