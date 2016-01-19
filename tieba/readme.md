@@ -17,7 +17,7 @@
     #如果有中文，在winodws的命令行下会报错，建议使用IDE或者linux环境
     #查看用户信息(如果查看用户开放权限):
     from tieba.py import User, Tiezi
-    user = 'pei坏'
+    user = USERNAME
     user = User(user)
     #获取贴吧注册时间（获取其它基本信息函数类似）
     age = user.get_age()
