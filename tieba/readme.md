@@ -108,7 +108,20 @@ get_ifollow,获取我关注的用户,这里type有三个可选参数：all,num,u
     #更换贴吧
     tieba.set_tieba("贴吧名字")
 
-
 关注和取消关注，还在测试中.
 
+##新增支持保存cookie:
+第一次需要提供帐号密码，并且可能需要手动输入验证码完成登陆，此时会将cookie文件保存。
+后面在需要登录操作时，可以不提供帐号密码。如：
+
+    #第一次关注用户"他入我心沐"，需要提供帐号密码.
+    user = User("他入我心沐",username=username,password=password)
+    user.follow()
+    
+    #后续在本机还需要登录时，如取消关注用户"他入我心沐",可以直接简单的如下：
+    #是否成功从cookie加载配置会显示在终端上,如失败更具终端提示操作
+    user = User("他入我心沐")
+    user.unfollow()
+
+    
 

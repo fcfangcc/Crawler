@@ -6,35 +6,41 @@ import cookielib
 import json
 import urllib
 import time
+
 requests.packages.urllib3.disable_warnings()
+
+
 # todo:修改windows命令行下登录失败的问题,还未定位到问题原因
 def get_tt():
-    return str(int(time.time()*1000))
+    return str(int(time.time() * 1000))
+
 
 requests = requests.session()
 requests.cookies = cookielib.LWPCookieJar('cookies.txt')
 
 try:
-    requests.cookies.load(ignore_discard=True)
+    requests.cookies.load(ignore_discard=True, ignore_expires=True)
     # print requests.cookies
 except:
     print u"还未登录百度"
 
 HEADER = {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Encoding": "gzip, deflate",
-        "Accept-Language": "zh-CN,zh;q=0.8",
-        "Connection": "keep-alive",
-        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.72 Safari/537.36"
-         }
+    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Encoding": "gzip, deflate",
+    "Accept-Language": "zh-CN,zh;q=0.8",
+    "Connection": "keep-alive",
+    "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.72 Safari/537.36"
+}
 
 MAIN_URL = "http://tieba.baidu.com/"
 
 BAIDU_CAT_URL_MAIN = "http://passport.baidu.com/cgi-bin/genimage?"
 
+
 class NetworkError(Exception):
     pass
+
 
 class Login2(object):
     def __init__(self, USERNAME=None, PASSWORD=None):
@@ -43,13 +49,18 @@ class Login2(object):
         self.URL_BAIDU_SIGN = 'http://tieba.baidu.com/sign/add'
 
     def login(self):
+        if self.islogin():
+            print u"已从cookie加载配置，登录成功!"
+            return True
+        if not (self.username and self.password):
+            print u"从cookie文件加载配置失败，请提供用户名密码!"
+            return False
         URL_BAIDU_TOKEN = 'https://passport.baidu.com/v2/api/?getapi&tpl=pp&apiver=v3&class=login'
         URL_BAIDU_LOGIN = 'https://passport.baidu.com/v2/api/?login'
 
         tokenReturn = requests.get(URL_BAIDU_TOKEN, verify=False).content
         matchVal = re.search(u'"token" : "(?P<tokenVal>.*?)"', tokenReturn)
         self.tokenVal = matchVal.group('tokenVal')
-
 
         postData = {
             'username': self.username,
@@ -61,18 +72,19 @@ class Login2(object):
             'isPhone': 'false',
             'charset': 'UTF-8',
             'callback': 'parent.bd__pcbs__ra48vi'
-            }
+        }
 
         params = urllib.urlencode(postData)
         header = HEADER
         header['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
         header['Accept-Encoding'] = 'gzip,deflate,sdch'
         header['Accept-Language'] = 'zh-CN,zh;q=0.8'
-        header['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.72 Safari/537.36'
+        header[
+            'User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.72 Safari/537.36'
         header['Content-Type'] = 'application/x-www-form-urlencoded'
         r = requests.post(URL_BAIDU_LOGIN, data=params, headers=header, verify=False)
         self.BAIDU_CHANGE_CAP = "https://passport.baidu.com/v2/?reggetcodestr&token=" + self.tokenVal + \
-            '&tpl=mn&apiver=v3&tt=' + get_tt() + '&fr=login'
+                                '&tpl=mn&apiver=v3&tt=' + get_tt() + '&fr=login'
         if int(r.status_code) != 200:
             raise NetworkError, u'表单上传失败'
 
@@ -81,12 +93,11 @@ class Login2(object):
             params = urllib.urlencode(postData)
             r = requests.post(URL_BAIDU_LOGIN, data=params, headers=header, verify=False)
         if self.islogin():
-        # requests.cookies.save()
+            # requests.cookies.save()
             print u"登录成功"
             return True
         else:
             raise NetworkError, u"Username or Password error! Please check!"
-
 
     def fetch(self, url):
         r = requests.get(url, allow_redirects=False, verify=False)
@@ -103,7 +114,9 @@ class Login2(object):
         if status_code == 302:
             return False
         elif status_code == 200:
-            requests.cookies.save()
+            # ignore_discard: save even cookies set to be discarded.
+            # ignore_expires: save even cookies that have expiredThe file is overwritten if it already exists
+            requests.cookies.save(ignore_discard=True, ignore_expires=True)
             return True
         else:
             raise NetworkError, u'网络故障'
@@ -131,7 +144,7 @@ class Login2(object):
         if int(r.status_code) != 200:
             raise NetworkError(), u"验证码请求失败"
         image_name = u"verify." + r.headers['content-type'].split("/")[1]
-        open(image_name,"wb").write(r.content)
+        open(image_name, "wb").write(r.content)
 
         print u"正在调用外部程序渲染验证码...\n" \
               u"或者手动打开代码目录下verify.*文件查看并填写验证码!"
@@ -158,7 +171,7 @@ class Login2(object):
         verifycode = raw_input(u"Please enter the captcha:")
         return self.__check_captcha(verifycode, codeString)
 
-    def __check_captcha(self,verifycode, codeString):
+    def __check_captcha(self, verifycode, codeString):
         """
         查询验证码正确与否
         :param verifycode:
@@ -166,7 +179,7 @@ class Login2(object):
         :return:
         """
         check_url = "https://passport.baidu.com/v2/?checkvcode&token=" \
-                    + self.tokenVal + "&tpl=mn&apiver=v3&tt="+get_tt()+"&verifycode="+verifycode+"&codestring="+ codeString + \
+                    + self.tokenVal + "&tpl=mn&apiver=v3&tt=" + get_tt() + "&verifycode=" + verifycode + "&codestring=" + codeString + \
                     "&callback=bd__cbs__r4gm19"
         r = requests.get(check_url, headers=HEADER, verify=False)
         # print r.content

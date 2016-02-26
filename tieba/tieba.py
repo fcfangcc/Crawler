@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+# -*- coding: UTF-8 -*-
 from lxml.html import soupparser
 import urllib
 from urlparse import urljoin
@@ -10,6 +10,7 @@ import json
 import re
 from login import Login2, HEADER
 import time
+
 requests.packages.urllib3.disable_warnings()
 
 HEADERS = {'content-type': 'application/json',
@@ -28,18 +29,20 @@ URL_BAIDU_UNCOLLECTION = 'http://tieba.baidu.com/i/submit/cancel_storethread'
 
 def user_main(name):
     name = name.decode('UTF-8').encode('gbk')
-    url ="http://tieba.baidu.com/home/main?un="+repr(name)+"&fr=ihome"
+    url = "http://tieba.baidu.com/home/main?un=" + repr(name) + "&fr=ihome"
     url = url.replace("\'", "").replace("\\x", "%")
     return url
+
 
 def is_login(func):
     def _func(*args, **kwargs):
         self = args[0]
         try:
-            if self.username and self.password:
+            if self.status:
                 func(*args, **kwargs)
         except:
-            raise UserError,u'Please input username and password!'
+            raise UserError, u'Please input username and password!'
+
     return _func
 
 
@@ -60,13 +63,17 @@ class UserError(Exception):
 
 
 class User(object):
+    """用户操作类.
+    对于需要登录才能操作的方法，需要提供用户名密码或者有cookie文件。
+    """
+
     def __init__(self, user, username=None, password=None):
         self.username = username
         self.password = password
         self.set_user(user)
-        if username and password:
-            self.login = Login2(username, password)
-            self.login.login()
+        # if username and password:
+        self.login = Login2(username, password)
+        self.status = self.login.login()
 
     def get_followba(self):
         """
@@ -121,9 +128,11 @@ class User(object):
         """
         if self.userHtml.find('.//*[@id="container"]/div[2]/div[4]/h1/span'):
             followme_url, = self.userHtml.find('.//*[@id="container"]/div[2]/div[4]/h1/span')
-        elif self.userHtml.find('.//*[@id="container"]/div[2]/div[3]/h1/span') is not None and self.userHtml.find('.//*[@id="container"]/div[2]/div[3]')[0].text in [u"关注他的人", u"关注她的人"]:
+        elif self.userHtml.find('.//*[@id="container"]/div[2]/div[3]/h1/span') is not None and \
+                        self.userHtml.find('.//*[@id="container"]/div[2]/div[3]')[0].text in [u"关注他的人", u"关注她的人"]:
             followme_url, = self.userHtml.find('.//*[@id="container"]/div[2]/div[3]/h1/span')
-        elif self.userHtml.find('.//*[@id="container"]/div[2]/div[2]/h1/span') is not None and self.userHtml.find('.//*[@id="container"]/div[2]/div[2]')[0].text in [u"关注他的人", u"关注她的人"]:
+        elif self.userHtml.find('.//*[@id="container"]/div[2]/div[2]/h1/span') is not None and \
+                        self.userHtml.find('.//*[@id="container"]/div[2]/div[2]')[0].text in [u"关注他的人", u"关注她的人"]:
             followme_url, = self.userHtml.find('.//*[@id="container"]/div[2]/div[2]/h1/span')
         else:
             return u"没有人关注此用户"
@@ -158,9 +167,11 @@ class User(object):
         :param type:
         :return:
         """
-        if self.userHtml.find('.//*[@id="container"]/div[2]/div[3]/h1/span') is not None and self.userHtml.find('.//*[@id="container"]/div[2]/div[3]')[0].text in [u"他关注的人",u"她关注的人"]:
+        if self.userHtml.find('.//*[@id="container"]/div[2]/div[3]/h1/span') is not None and \
+                        self.userHtml.find('.//*[@id="container"]/div[2]/div[3]')[0].text in [u"他关注的人", u"她关注的人"]:
             ifollow_url, = self.userHtml.find('.//*[@id="container"]/div[2]/div[3]/h1/span')
-        elif self.userHtml.find('.//*[@id="container"]/div[2]/div[2]/h1/span') is not None and self.userHtml.find('.//*[@id="container"]/div[2]/div[2]')[0].text in [u"他关注的人",u"她关注的人"]:
+        elif self.userHtml.find('.//*[@id="container"]/div[2]/div[2]/h1/span') is not None and \
+                        self.userHtml.find('.//*[@id="container"]/div[2]/div[2]')[0].text in [u"他关注的人", u"她关注的人"]:
             ifollow_url, = self.userHtml.find('.//*[@id="container"]/div[2]/div[2]/h1/span')
         else:
             return u"此用户未关注任何人"
@@ -200,12 +211,14 @@ class User(object):
         titles = self.userHtml.findall('.//*[@id="container"]/div[1]/div/div[3]/ul/div/div[3]/div[2]/a[1]')
         names = self.userHtml.findall('.//*[@id="container"]/div[1]/div/div[3]/ul/div/div[3]/div[2]/a[2]')
         num = len(replys) if num > len(replys) else num
-        replydict = dict([(i, dict([('reply', replys[i].text), ('title', titles[i].text), ('name', names[i].text), ('time',times[i].text)])) for i in xrange(num)])
+        replydict = dict([(i, dict(
+            [('reply', replys[i].text), ('title', titles[i].text), ('name', names[i].text), ('time', times[i].text)]))
+                          for i in xrange(num)])
         return replydict
 
     def __hide_status(self):
         if 'his_thread_blank' in self.req.content:
-            raise UserError,u'用户已经隐藏个人状态,无法获取该信息.'
+            raise UserError, u'用户已经隐藏个人状态,无法获取该信息.'
         else:
             return False
 
@@ -264,13 +277,17 @@ class User(object):
 
 
 class Tiezi(object):
+    """帖子操作类.
+    对于需要登录才能操作的方法，需要提供用户名密码或者有cookie文件。
+    """
+
     def __init__(self, num, username=None, password=None):
         self.username = username
         self.password = password
         self.set_tiezi(num)
-        if username and password:
-            self.login = Login2(username, password)
-            self.login.login()
+        # if username and password:
+        self.login = Login2(username, password)
+        self.status = self.login.login()
 
     def __del__(self):
         pass
@@ -292,12 +309,12 @@ class Tiezi(object):
             print u"起始页面超过上限!本帖子一共有 %d 页\n" % num
             sys.exit()
         num = num if num < end else end
-        for i in xrange(start-1, num):
-            soup = soupparser.fromstring(requests.get(self.url+str(i+1), verify=False).content)
+        for i in xrange(start - 1, num):
+            soup = soupparser.fromstring(requests.get(self.url + str(i + 1), verify=False).content)
             if type == "txt":
-                self.__get_lz_txt(i+1, soup)
+                self.__get_lz_txt(i + 1, soup)
             elif type == "photo":
-                self.__get_lz_jpg(i+1, soup)
+                self.__get_lz_jpg(i + 1, soup)
             else:
                 print u"输入的参数有误，只能输入'txt'或者'photo'"
 
@@ -413,7 +430,8 @@ class Tiezi(object):
                 "tbs": msg['tbs'],
                 "files": "[]",
                 "sign_id": msg['sign_id'],
-                "mouse_pwd": "23,21,16,15,18,20,23,27,42,18,15,19,15,18,15,19,15,18,15,19,15,18,15,19,15,18,15,19,42,18,16,22,26,19,42,18,26,17,19,15,18,19,27,19," + str(int(time.time()*10000)),
+                "mouse_pwd": "23,21,16,15,18,20,23,27,42,18,15,19,15,18,15,19,15,18,15,19,15,18,15,19,15,18,15,19,42,18,16,22,26,19,42,18,26,17,19,15,18,19,27,19," + str(
+                    int(time.time() * 10000)),
                 "mouse_pwd_t": msg["mouse_pwd_t"],
                 "mouse_pwd_isclick": 0,
                 "__type__": "reply"
@@ -437,7 +455,7 @@ class Tiezi(object):
         """
         dictory = {}
         text = self.login.fetch(url)
-        text2 = self.login.fetch("http://tieba.baidu.com/f/user/sign_list?t=" + str(int(time.time()*10000)))
+        text2 = self.login.fetch("http://tieba.baidu.com/f/user/sign_list?t=" + str(int(time.time() * 10000)))
         soup = soupparser.fromstring(text)
         msg = soup.xpath(".//*[@type='hidden']")[0]
         dictory['kw'] = msg.attrib['value']
@@ -457,7 +475,7 @@ class Tiezi(object):
         tid = self.tienum
         url = MAIN_URL + "p/" + str(self.tienum)
         t = self.login.fetch(url)
-        tbs = re.findall("'tbs':'([\w]*)'",t)[0]
+        tbs = re.findall("'tbs':'([\w]*)'", t)[0]
         data = {
             'tid': tid,
             'type': 0,
@@ -491,8 +509,8 @@ class Tiezi(object):
             return False
 
     def set_tiezi(self, num):
-        self.url = MAIN_URL + "p/" + str(num) +"?see_lz=1&pn="
-        req = requests.get(self.url+'1', headers=HEADERS, allow_redirects=False, verify=False)
+        self.url = MAIN_URL + "p/" + str(num) + "?see_lz=1&pn="
+        req = requests.get(self.url + '1', headers=HEADERS, allow_redirects=False, verify=False)
         if int(req.status_code) != 200:
             raise TieziError, u'输入的帖子错误或者已经被删除'
         self.text = req.content
@@ -501,13 +519,18 @@ class Tiezi(object):
 
 
 class Tieba(object):
+    """贴吧操作类.
+    对于js生成的贴吧，将会调用casperjs来得到html信息，然后通过lxml解析。
+    对于需要登录才能操作的方法，需要提供用户名密码或者有cookie文件。
+    """
+
     def __init__(self, name, username=None, password=None):
         self.username = username
         self.password = password
         self.set_tieba(name)
-        if username and password:
-            self.login = Login2(username, password)
-            self.login.login()
+        # if username and password:
+        self.login = Login2(username, password)
+        self.status = self.login.login()
 
     def get_follownum(self):
         """
@@ -581,7 +604,7 @@ class Tieba(object):
         """
         url = "http://tieba.baidu.com/home/main?un=" + self.name + "&fr=ibaidu&ie=utf-8"
         t = self.login.fetch(url)
-        tbs = re.findall("'tbs':'([\w]*)'",t)[0]
+        tbs = re.findall("'tbs':'([\w]*)'", t)[0]
         date = {
             'ie': 'utf-8',
             'tbs': tbs,
@@ -623,10 +646,10 @@ class Tieba(object):
             return True
         else:
             return False
-        # if self.__issign(self.url):
-        #     return True
-        # else:
-        #     return False
+            # if self.__issign(self.url):
+            #     return True
+            # else:
+            #     return False
 
     def __issign(self, url):
         content = self.login.fetch(url)
@@ -677,7 +700,8 @@ class Tieba(object):
                 "title": title,
                 "prefix": "",
                 "files": "[]",
-                "mouse_pwd": "1,15,10,22,15,1,1,1,0,15,15,1,10,1,14,0,15,20,0,12,10,8,22,15,9,1,15,10,14,13,14,10,13,49,9,20,8,20,9,20,8,20,9,20,8,20,9,20,8,20,9,20,8,49,9,8,10,11,10,10,49,9,13,11,14,20,0,14,12," + str(int(time.time()*10000)),
+                "mouse_pwd": "1,15,10,22,15,1,1,1,0,15,15,1,10,1,14,0,15,20,0,12,10,8,22,15,9,1,15,10,14,13,14,10,13,49,9,20,8,20,9,20,8,20,9,20,8,20,9,20,8,20,9,20,8,49,9,8,10,11,10,10,49,9,13,11,14,20,0,14,12," + str(
+                    int(time.time() * 10000)),
                 "mouse_pwd_t": msg["mouse_pwd_t"],
                 "mouse_pwd_isclick": 0,
                 "__type__": "thread"
@@ -706,7 +730,7 @@ class Tieba(object):
         except:
             dictory['tbs'] = re.findall(''''tbs': "([\w]*)"''', html)[0]
         dictory['fid'] = re.findall('"forum_id":([0-9]*),', html)[0]
-        dictory["mouse_pwd_t"] = int(time.time())*1000
+        dictory["mouse_pwd_t"] = int(time.time()) * 1000
         return dictory
 
     def __exist(self):
@@ -725,7 +749,7 @@ class Tieba(object):
         :param path:
         :return:
         """
-        path = "%s.html" % self.name if path else path+"%s.html" % self.name
+        path = "%s.html" % self.name if path else path + "%s.html" % self.name
         with open(path, 'w') as f:
             f.write(self.html)
         print "html save succeed!"
@@ -761,7 +785,7 @@ class Tieba(object):
         req = requests.get(self.url, headers=HEADERS, allow_redirects=False, verify=False)
 
         if int(req.status_code) != 200:
-            raise TiebaError,'The tieba: "%s" have not exist!' % self.name
+            raise TiebaError, 'The tieba: "%s" have not exist!' % self.name
 
         self.html = req.content
         try:
