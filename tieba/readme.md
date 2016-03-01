@@ -1,8 +1,18 @@
 # tieba.py使用方法:
 ### 注意:所有方法如果正确执行默认返回True，不会提示成功执行.如果出错返回False同时会有信息输出.
-##### 如需使用登录操作，目前仅支持用百度用户名密码登录,手机用户暂不支持!
+##### <登录>目前仅支持用户名密码登录,手机用户名暂不支持！同时支持任何用户用手机百度扫二维码登录。登录一次后会保存cookie，后面可以直接对类进行操作。
+    from tieba.py import User
+    user = User("黑曼巴来了92")
+    user.follow()#关注此用户
+    
+运行此程序后会提示用何种方式登录,后续只需要按照提示操作即可：
+
+    请选择登录方式:
+    1:帐号密码登录(不支持手机号登录).
+    2:手机百度扫描二维码登录.
+    请输入号码:
 ##### python2.7.10，windows下Pycharm和centos6.7下测试通过，其它平台不确定.(<font color=red>切勿使用windows命令行调用类</font>，在utf-8文件里调用可以)
-##### 增加了对js生成的贴吧首页的支持:Tieba().set_html_by_js()函数
+##### 增加了对js生成的贴吧首页的支持:Tieba().set_html_by_js()方法
 
 主要利用了casperjs将加载完的html内容返回给python,然后利用xpath做解析。
 
@@ -10,15 +20,14 @@
 
 如需要在linux下<font color=red>完美使用</font>，安装完casperjs和phantomjs之后，将他们的(path)/bin<font color=red>加入到/etc/profile里面的path环境变量</font>中，就可以正常使用.
 
-参考的[zhihu-python](https://github.com/egrcc/zhihu-python/blob/master/auth.py)里面的登录函数进行了修改(<font color=red>现已支持手动输入验证码</font>,cookie功能还有问题)
+参考的[zhihu-python](https://github.com/egrcc/zhihu-python/blob/master/auth.py)里面的登录函数进行了修改(<font color=red>现已支持手动输入验证码以及扫二维码登录</font>)
 
 ## User类使用方法:
 
     #如果有中文，在winodws的命令行下会报错，建议使用IDE或者linux环境
     #查看用户信息(如果查看用户开放权限):
     from tieba.py import User, Tiezi
-    user = USERNAME
-    user = User(user)
+    user = User(USERNAME)
     #获取贴吧注册时间（获取其它基本信息函数类似）
     age = user.get_age()
 获取关注的贴吧以及等级，返回字典类型{u'\u6d59\u6c5f\u5de5\u5546\u5927\u5b66': 'lv11', u'\u5206\u624b': 'lv11', u'\u8bdb\u4ed9': 'lv11', 'lol': 'lv11'}
@@ -38,13 +47,9 @@ get_ifollow,获取我关注的用户,这里type有三个可选参数：all,num,u
     #获取最近回复的帖子10个
     #返回类型为字典:{"编号":{回复内容相关信息的字典}}
 
-
-
-###### 下面是需要登录的对用户操作:
-
 如现在需要关注/取消关注用户"精英彩虹",操作之后继续关注"pei坏"用户.
     
-    user = User("精英彩虹",username=username,password=password)
+    user = User("精英彩虹")
     user.follow()
     user.unfollow()
     #切换操作对象
@@ -68,9 +73,9 @@ get_ifollow,获取我关注的用户,这里type有三个可选参数：all,num,u
     #如果选择photo,将楼发表的帖子的图片下载到文件夹中.
 
 
-###### 下面是需要登录的操作本贴方法:
+收藏和取消收藏，以及回复：
 
-    tiezi = Tiezi('帖子号码',username=username,password=password)
+    tiezi = Tiezi('帖子号码')
     tiezi.reply("回复的内容，目前只支持纯文本内容")
     #可以使用这个脚本来刷某个贴吧的经验= =
     #收藏和取消收藏
@@ -88,8 +93,8 @@ get_ifollow,获取我关注的用户,这里type有三个可选参数：all,num,u
 其中获取贴吧基本信息的函数和Tiezi,User类基本相同(并且不需要登录),不做介绍.
 
     from tieba import Tieba
-    #如:Tieba("杭州",username="admin",password="123456")
-    tieba = Tieba(name, username=username,password=password)
+    #如:Tieba("杭州")
+    tieba = Tieba(name)
     
     #签到
     tieba.sign()
@@ -112,16 +117,10 @@ get_ifollow,获取我关注的用户,这里type有三个可选参数：all,num,u
 
 ##新增支持保存cookie:
 第一次需要提供帐号密码，并且可能需要手动输入验证码完成登陆，此时会将cookie文件保存。
-后面在需要登录操作时，可以不提供帐号密码。如：
+后面在需要登录操作时，可以不提供帐号密码。
 
-    #第一次关注用户"他入我心沐"，需要提供帐号密码.
-    user = User("他入我心沐",username=username,password=password)
-    user.follow()
     
-    #后续在本机还需要登录时，如取消关注用户"他入我心沐",可以直接简单的如下：
-    #是否成功从cookie加载配置会显示在终端上,如失败更具终端提示操作
-    user = User("他入我心沐")
-    user.unfollow()
+
 
     
 

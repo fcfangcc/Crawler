@@ -9,3 +9,4 @@
 百度贴吧相关API:[tieba.py](https://github.com/fcfangcc/Crawler/tree/master/tieba)
 
 
+微博登录相关API:[weibo.py](https://github.com/fcfangcc/Crawler/tree/master/weibo)

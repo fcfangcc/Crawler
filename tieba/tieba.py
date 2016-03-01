@@ -8,10 +8,18 @@ import os
 import shutil
 import json
 import re
-from login import Login2, HEADER
+from login import Login2
 import time
+import cookielib
 
-requests.packages.urllib3.disable_warnings()
+HEADER = {
+    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Encoding": "gzip, deflate",
+    "Accept-Language": "zh-CN,zh;q=0.8",
+    "Connection": "keep-alive",
+    "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.72 Safari/537.36"
+}
 
 HEADERS = {'content-type': 'application/json',
            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:22.0) Gecko/20100101 Firefox/22.0'}
@@ -25,9 +33,50 @@ URL_BAIDU_USER_UNFOLLOW = 'http://tieba.baidu.com/home/post/unfollow'
 URL_BAIDU_REPLY = 'http://tieba.baidu.com/f/commit/post/add'
 URL_BAIDU_COLLECTION = 'http://tieba.baidu.com/i/submit/open_storethread'
 URL_BAIDU_UNCOLLECTION = 'http://tieba.baidu.com/i/submit/cancel_storethread'
+requests.packages.urllib3.disable_warnings()
+requests = requests.session()
+requests.cookies = cookielib.LWPCookieJar('cookies.txt')
+# 代表登录状态
+LOGIN_STATUS = False
+
+
+def islogin():
+    """
+    判断是否已经成功登陆的函数
+    :return: True or False
+    """
+    header = HEADER
+    header['Accept-Encoding'] = 'gzip, deflate, sdch'
+    header['Referer'] = 'https://www.baidu.com/'
+    url = "http://i.baidu.com/"
+    r = requests.get(url, headers=header, allow_redirects=False, verify=False)
+    status_code = int(r.status_code)
+    if status_code == 302:
+        return False
+    elif status_code == 200:
+        return True
+    else:
+        raise Exception, u'网络故障'
+
+
+try:
+    requests.cookies.load(ignore_discard=True, ignore_expires=True)
+    if islogin():
+        print(u"从cookie文件加载配置成功!")
+        LOGIN_STATUS = True
+    else:
+        LOGIN_STATUS = False
+except:
+    print(u"未检测到cookie文件")
+    LOGIN_STATUS = False
 
 
 def user_main(name):
+    """
+    修改用户名编码的函数
+    :param name:
+    :return:
+    """
     name = name.decode('UTF-8').encode('gbk')
     url = "http://tieba.baidu.com/home/main?un=" + repr(name) + "&fr=ihome"
     url = url.replace("\'", "").replace("\\x", "%")
@@ -35,13 +84,25 @@ def user_main(name):
 
 
 def is_login(func):
+    """
+    需要登录才能操作的方法加的装饰器,如果没登录则登录
+    :param func:
+    :return:
+    """
     def _func(*args, **kwargs):
-        self = args[0]
-        try:
-            if self.status:
+        global LOGIN_STATUS
+        if LOGIN_STATUS:
+            func(*args, **kwargs)
+        else:
+            login = Login2()
+            login.login_choice()
+            time.sleep(1)
+            try:
+                requests.cookies.load(ignore_discard=True, ignore_expires=True)
+                LOGIN_STATUS = True
                 func(*args, **kwargs)
-        except:
-            raise UserError, u'Please input username and password!'
+            except Exception as e:
+                print e
 
     return _func
 
@@ -67,13 +128,8 @@ class User(object):
     对于需要登录才能操作的方法，需要提供用户名密码或者有cookie文件。
     """
 
-    def __init__(self, user, username=None, password=None):
-        self.username = username
-        self.password = password
+    def __init__(self, user):
         self.set_user(user)
-        # if username and password:
-        self.login = Login2(username, password)
-        self.status = self.login.login()
 
     def get_followba(self):
         """
@@ -240,7 +296,7 @@ class User(object):
         关注/取消关注数据
         :return:
         """
-        t = self.login.fetch(self.url)
+        t = requests.get(url=self.url, allow_redirects=False, verify=False).content
         tbs = re.findall("'tbs':'([\w]*)'", t)[0]
         un = self.user
         data = {
@@ -252,7 +308,7 @@ class User(object):
         headers = HEADER
         headers['Content-Length'] = len(postdata)
         headers['Referer'] = self.url
-        r = self.login.postdata(post_url, postdata, headers)
+        r = requests.post(url=post_url, data=postdata, headers=headers, verify=False)
         # print r.status_code
         # print r.headers
         return int(r.status_code)
@@ -281,13 +337,8 @@ class Tiezi(object):
     对于需要登录才能操作的方法，需要提供用户名密码或者有cookie文件。
     """
 
-    def __init__(self, num, username=None, password=None):
-        self.username = username
-        self.password = password
+    def __init__(self, num):
         self.set_tiezi(num)
-        # if username and password:
-        self.login = Login2(username, password)
-        self.status = self.login.login()
 
     def __del__(self):
         pass
@@ -439,7 +490,7 @@ class Tiezi(object):
         postdata = urllib.urlencode(data)
         headers = HEADER
         headers['Referer'] = url
-        r = self.login.postdata(URL_BAIDU_REPLY, postdata, HEADER)
+        r = requests.post(url=URL_BAIDU_REPLY, data=postdata, headers=headers, verify=False)
         if int(r.status_code) == 200:
             return True
         else:
@@ -454,8 +505,9 @@ class Tiezi(object):
         :return:
         """
         dictory = {}
-        text = self.login.fetch(url)
-        text2 = self.login.fetch("http://tieba.baidu.com/f/user/sign_list?t=" + str(int(time.time() * 10000)))
+        text = requests.get(url=url, allow_redirects=False, verify=False).content
+        text2 = requests.get(url="http://tieba.baidu.com/f/user/sign_list?t=" + str(int(time.time() * 10000)),
+                             allow_redirects=False, verify=False).content
         soup = soupparser.fromstring(text)
         msg = soup.xpath(".//*[@type='hidden']")[0]
         dictory['kw'] = msg.attrib['value']
@@ -474,7 +526,7 @@ class Tiezi(object):
         """
         tid = self.tienum
         url = MAIN_URL + "p/" + str(self.tienum)
-        t = self.login.fetch(url)
+        t = requests.get(url=url, allow_redirects=False, verify=False).content
         tbs = re.findall("'tbs':'([\w]*)'", t)[0]
         data = {
             'tid': tid,
@@ -487,7 +539,7 @@ class Tiezi(object):
         headers = HEADER
         headers['Referer'] = url
         headers['Content-Length'] = len(postdata)
-        r = self.login.postdata(post_url, postdata, headers)
+        r = requests.post(url=post_url, data=postdata, headers=headers, verify=False)
         return int(r.status_code)
 
     @is_login
@@ -524,13 +576,8 @@ class Tieba(object):
     对于需要登录才能操作的方法，需要提供用户名密码或者有cookie文件。
     """
 
-    def __init__(self, name, username=None, password=None):
-        self.username = username
-        self.password = password
+    def __init__(self, name):
         self.set_tieba(name)
-        # if username and password:
-        self.login = Login2(username, password)
-        self.status = self.login.login()
 
     def get_follownum(self):
         """
@@ -603,7 +650,7 @@ class Tieba(object):
         :return:
         """
         url = "http://tieba.baidu.com/home/main?un=" + self.name + "&fr=ibaidu&ie=utf-8"
-        t = self.login.fetch(url)
+        t = requests.get(url=url, allow_redirects=False, verify=False).content
         tbs = re.findall("'tbs':'([\w]*)'", t)[0]
         date = {
             'ie': 'utf-8',
@@ -613,7 +660,7 @@ class Tieba(object):
         headers = HEADER
         headers['Referer'] = 'http://tieba.baidu.com/'
         headers['Content-Length'] = len(postdata)
-        r = self.login.postdata(URL_BAIDU_SIGN_ALL, postdata, headers)
+        r = requests.post(url=URL_BAIDU_SIGN_ALL, data=postdata, headers=headers, verify=False)
         if int(r.status_code) == 200:
             return True
         else:
@@ -641,18 +688,14 @@ class Tieba(object):
         headers = HEADER
         headers['Referer'] = self.url
         headers['Cache-Control'] = 'no-cache'
-        r = self.login.postdata(URL_BAIDU_SIGN, postdata, headers)
+        r = requests.post(url=URL_BAIDU_SIGN, data=postdata, headers=headers, verify=False)
         if int(r.status_code) == 200:
             return True
         else:
             return False
-            # if self.__issign(self.url):
-            #     return True
-            # else:
-            #     return False
 
     def __issign(self, url):
-        content = self.login.fetch(url)
+        content = requests.get(url=url, allow_redirects=False, verify=False).content
         if re.findall('class="sign_keep_span"', content):
             return True
         else:
@@ -707,13 +750,13 @@ class Tieba(object):
                 "__type__": "thread"
                 }
         postdata = urllib.urlencode(data)
-        hraders = HEADER
-        hraders['Referer'] = self.url
-        hraders['Accept-Language'] = 'zh-CN'
-        hraders['Host'] = 'tieba.baidu.com'
-        hraders['Content-Length'] = len(postdata)
-        hraders['X-Requested-With'] = 'XMLHttpRequest'
-        r = self.login.postdata(URL_BAIDU_THREAD, postdata, hraders)
+        headers = HEADER
+        headers['Referer'] = self.url
+        headers['Accept-Language'] = 'zh-CN'
+        headers['Host'] = 'tieba.baidu.com'
+        headers['Content-Length'] = len(postdata)
+        headers['X-Requested-With'] = 'XMLHttpRequest'
+        r = requests.post(url=URL_BAIDU_THREAD, data=postdata, headers=headers, verify=False)
         if int(r.status_code) == 200:
             print u"发帖成功"
             # todo:未来增加返回新发的贴的地址功能
@@ -724,7 +767,7 @@ class Tieba(object):
 
     def __get_msg_tieba(self, url):
         dictory = {}
-        html = self.login.fetch(url)
+        html = requests.get(url=url, allow_redirects=False, verify=False).content
         try:
             dictory['tbs'] = re.findall("'tbs':'([\w]*)'", html)[0]
         except:
@@ -773,8 +816,11 @@ class Tieba(object):
         利用casperjs来加载贴吧首页，并获得解析之后的HTML内容
         :return:
         """
-        print u"正在启用casperjs和phantomjs进行解析,请等待......"
-        from jshtml.jshtml import Js_Html
+        print(u"正在启用casperjs和phantomjs进行解析,请等待......")
+        try:
+            from jshtml.jshtml import Js_Html
+        except Exception:
+            print(u"请下载程序中的jshtml文件夹的内容，否则无法使用TieBa类")
         self.html = Js_Html().get_html(self.url)
         self.soup = soupparser.fromstring(self.html)
 
@@ -794,5 +840,7 @@ class Tieba(object):
             self.set_html_by_js()
 
 
-if __name__ == '__main__':
-    pass
+# if __name__ == '__main__':
+#     a = User("黑曼巴来了92")
+#     a.follow()
+
