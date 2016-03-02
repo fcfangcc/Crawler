@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+__author__ = 'fangc'
 from lxml.html import soupparser
 import urllib
 from urlparse import urljoin
@@ -89,6 +90,7 @@ def is_login(func):
     :param func:
     :return:
     """
+
     def _func(*args, **kwargs):
         global LOGIN_STATUS
         if LOGIN_STATUS:
@@ -315,6 +317,10 @@ class User(object):
 
     @is_login
     def unfollow(self):
+        """
+        关注此用户
+        :return: True or False
+        """
         status = self.__follow_templates(URL_BAIDU_USER_UNFOLLOW)
         if status == 200:
             return True
@@ -324,6 +330,10 @@ class User(object):
 
     @is_login
     def follow(self):
+        """
+        取消关注此用户
+        :return: True or False
+        """
         status = self.__follow_templates(URL_BAIDU_USER_FOLLOW)
         if status == 200:
             return True
@@ -544,6 +554,10 @@ class Tiezi(object):
 
     @is_login
     def collection(self):
+        """
+        收藏本帖
+        :return: True or False
+        """
         status = self.__collection_templates(URL_BAIDU_COLLECTION)
         if status == 200:
             return True
@@ -553,6 +567,10 @@ class Tiezi(object):
 
     @is_login
     def uncollection(self):
+        """
+        取消收藏本帖
+        :return: True or False
+        """
         status = self.__collection_templates(URL_BAIDU_USER_UNFOLLOW)
         if status == 200:
             return True
@@ -561,6 +579,11 @@ class Tiezi(object):
             return False
 
     def set_tiezi(self, num):
+        """
+        修改需要操作的贴吧
+        :param num: 帖子号
+        :return: None
+        """
         self.url = MAIN_URL + "p/" + str(num) + "?see_lz=1&pn="
         req = requests.get(self.url + '1', headers=HEADERS, allow_redirects=False, verify=False)
         if int(req.status_code) != 200:
@@ -806,9 +829,17 @@ class Tieba(object):
         return self.html
 
     def get_tieba_url(self):
+        """
+        获取贴吧首页url
+        :return: url
+        """
         return self.url
 
     def get_tieba_html(self):
+        """
+        获取贴吧html代码
+        :return: html
+        """
         return self.html
 
     def set_html_by_js(self):
@@ -825,6 +856,11 @@ class Tieba(object):
         self.soup = soupparser.fromstring(self.html)
 
     def set_tieba(self, name):
+        """
+        修改正在操作的贴吧名字
+        :param name: 贴吧名
+        :return:
+        """
         self.name = name
         url_items = [MAIN_URL, "f?kw=", name, "&fr=home"]
         self.url = ''.join(url_items)
@@ -839,8 +875,6 @@ class Tieba(object):
         except ValueError:
             self.set_html_by_js()
 
-
 # if __name__ == '__main__':
 #     a = User("黑曼巴来了92")
 #     a.follow()
-

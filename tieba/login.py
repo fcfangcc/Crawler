@@ -1,4 +1,5 @@
 # -*- coding: utf8 -*-
+__author__ = 'fangc'
 import requests
 import re
 import platform, os
@@ -50,6 +51,11 @@ class Login2(object):
         self.URL_BAIDU_SIGN = 'http://tieba.baidu.com/sign/add'
 
     def login_choice(self):
+        """
+        选择登录的方式:
+        1:帐号密码登录.2:扫描二维码登录
+        :return:
+        """
         print(u"请选择登录方式:\n"
                   u"1:帐号密码登录(不支持手机号登录).\n"
                   u"2:手机百度扫描二维码登录.\n"
@@ -68,6 +74,10 @@ class Login2(object):
             sys.exit()
 
     def login(self):
+        """
+        帐号密码登录
+        :return:
+        """
         if self.islogin():
             print u"已从cookie加载配置，登录成功!"
             return True
@@ -105,18 +115,21 @@ class Login2(object):
         self.BAIDU_CHANGE_CAP = "https://passport.baidu.com/v2/?reggetcodestr&token=" + self.tokenVal + \
                                 '&tpl=mn&apiver=v3&tt=' + get_tt() + '&fr=login'
         if int(r.status_code) != 200:
-            raise NetworkError, u'表单上传失败'
+            raise NetworkError(), u'表单上传失败'
 
         if not self.islogin():
             postData['verifycode'], postData['codestring'] = self.__download_captcha()
             params = urllib.urlencode(postData)
             r = requests.post(URL_BAIDU_LOGIN, data=params, headers=header, verify=False)
-        if self.islogin():
-            # requests.cookies.save()
+        else:
             print u"登录成功"
             return True
-        else:
-            raise NetworkError, u"Username or Password error! Please check!"
+        # 20160302修改
+        # if self.islogin():
+        #     print u"登录成功"
+        #     return True
+        # else:
+        #     raise NetworkError(), u"Username or Password error! Please check!"
 
     def login_qrcode(self):
         """
@@ -182,7 +195,7 @@ class Login2(object):
                 status = 1
             except Exception as e:
                 print e
-        # 再进行登录操作,通过v获取budss
+        # 再进行登录操作,通过v获取bduss
         params = {
             "u": "https://www.baidu.com/",
             "bduss": v,
@@ -194,7 +207,6 @@ class Login2(object):
         }
         BdLoginUrl = "https://passport.baidu.com/v2/api/bdusslogin"
         req = requests.get(url=BdLoginUrl, params=params, headers=headers, allow_redirects=False)
-        # print req.cookies['BDUSS']
         if req.status_code == 200:
             requests.cookies.save(ignore_discard=True, ignore_expires=True)
             print(u"登录成功！")
@@ -207,6 +219,10 @@ class Login2(object):
         return r
 
     def islogin(self):
+        """
+        判断是否已经成功登录
+        :return: True or False
+        """
         header = HEADER
         header['Accept-Encoding'] = 'gzip, deflate, sdch'
         header['Referer'] = 'https://www.baidu.com/'
@@ -263,10 +279,9 @@ class Login2(object):
                     + self.tokenVal + "&tpl=mn&apiver=v3&tt=" + get_tt() + "&verifycode=" + verifycode + "&codestring=" + codeString + \
                     "&callback=bd__cbs__r4gm19"
         r = requests.get(check_url, headers=HEADER, verify=False)
-        # print r.content
-        # print check_url
         if "success" not in r.content:
-            print u"验证输入错误，请重新输入!\n"
+            print u"验证输入错误，请重新输入!\n" \
+                  u"或者帐号密码错误,请确认!"
             self.__download_captcha()
         else:
             return verifycode, codeString
@@ -277,6 +292,10 @@ class Login2(object):
 
     @staticmethod
     def create_gid():
+        """
+        创建随机的gid，获取bduss需要用到
+        :return:
+        """
         from random import random
         key = ''
         for i in xrange(7):
@@ -297,6 +316,11 @@ class Login2(object):
 
     @staticmethod
     def open_img(image_name):
+        """
+        打开图片验证码和二维码方法
+        :param image_name:
+        :return:
+        """
         print u"正在调用外部程序渲染验证码...\n" \
               u"或者手动打开代码目录下'{}'文件查看并填写验证码!".format(image_name)
         if platform.system() == "Linux":
