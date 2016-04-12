@@ -83,14 +83,14 @@ def user_main(name):
     url = url.replace("\'", "").replace("\\x", "%")
     return url
 
-
+from functools import wraps
 def is_login(func):
     """
     需要登录才能操作的方法加的装饰器,如果没登录则登录
     :param func:
     :return:
     """
-
+    @wraps(func)
     def _func(*args, **kwargs):
         global LOGIN_STATUS
         if LOGIN_STATUS:
@@ -876,5 +876,5 @@ class Tieba(object):
             self.set_html_by_js()
 
 # if __name__ == '__main__':
-#     a = User("黑曼巴来了92")
-#     a.follow()
+#     a = User("liuqiqi85")
+#     print a.follow.__doc__

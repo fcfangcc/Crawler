@@ -90,7 +90,6 @@ class Login2(object):
         tokenReturn = requests.get(URL_BAIDU_TOKEN, verify=False).content
         matchVal = re.search(u'"token" : "(?P<tokenVal>.*?)"', tokenReturn)
         self.tokenVal = matchVal.group('tokenVal')
-
         postData = {
             'username': self.username,
             'password': self.password,
@@ -121,7 +120,12 @@ class Login2(object):
             postData['verifycode'], postData['codestring'] = self.__download_captcha()
             params = urllib.urlencode(postData)
             r = requests.post(URL_BAIDU_LOGIN, data=params, headers=header, verify=False)
+            if r.status_code == 200:
+                requests.cookies.save(ignore_discard=True, ignore_expires=True)
+            else:
+                print(u"发生未知错误!")
         else:
+            requests.cookies.save(ignore_discard=True, ignore_expires=True)
             print u"登录成功"
             return True
         # 20160302修改
@@ -344,5 +348,3 @@ class Login2(object):
         else:
             print u"我们无法探测你的作业系统，请自行打开验证码 %s 文件，并输入验证码:" % os.path.join(os.getcwd(), image_name)
 
-# if __name__ == '__main__':
-#     pass
