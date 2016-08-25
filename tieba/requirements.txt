@@ -1,4 +1,4 @@
 BeautifulSoup==3.2.1
-requests==2.7.0
+requests
 lxml==3.4.4
 

@@ -1,6 +1,10 @@
-# tieba.py使用方法:
-### 注意:所有方法如果正确执行默认返回True，不会提示成功执行.如果出错返回False同时会有信息输出.
-##### <登录>目前仅支持用户名密码登录,手机用户名暂不支持！同时支持任何用户用手机百度扫二维码登录。登录一次后会保存cookie，后面可以直接对类进行操作。
+# tieba.py使用方法:.
+##### python2.7.10，windows下Pycharm和centos6.7下测试通过
+
+主要利用了casperjs将加载完的html内容返回给python,然后利用xpath做解析。
+我将[casperjs](http://docs.casperjs.org/en/latest/index.html)和[phantomjs](http://phantomjs.org/)打包在了程序里面，下载整个tieba文件夹即可正常使用。(<font color=red>注意用户需要有可执行权限</fort>)
+##### <登录>目前仅支持用户名密码登录,手机用户名暂不支持！
+##### 登录一次后会保存cookie，后面可以直接对类进行操作(<font color=red>现已支持手动输入验证码以及扫二维码登录</font>)
     from tieba.py import User
     user = User("黑曼巴来了92")
     user.follow()#关注此用户
@@ -11,17 +15,7 @@
     1:帐号密码登录(不支持手机号登录).
     2:手机百度扫描二维码登录.
     请输入号码:
-##### python2.7.10，windows下Pycharm和centos6.7下测试通过，其它平台不确定.(<font color=red>切勿使用windows命令行调用类</font>，在utf-8文件里调用可以)
-##### 增加了对js生成的贴吧首页的支持:Tieba().set_html_by_js()方法
-
-主要利用了casperjs将加载完的html内容返回给python,然后利用xpath做解析。
-
-我将[casperjs](http://docs.casperjs.org/en/latest/index.html)和[phantomjs](http://phantomjs.org/)打包在了程序里面，windows环境下下载整个tieba文件夹即可正常使用。
-
-如需要在linux下<font color=red>完美使用</font>，安装完casperjs和phantomjs之后，将他们的(path)/bin<font color=red>加入到/etc/profile里面的path环境变量</font>中，就可以正常使用.
-
-参考的[zhihu-python](https://github.com/egrcc/zhihu-python/blob/master/auth.py)里面的登录函数进行了修改(<font color=red>现已支持手动输入验证码以及扫二维码登录</font>)
-
+    
 ## User类使用方法:
 
     #如果有中文，在winodws的命令行下会报错，建议使用IDE或者linux环境

@@ -94,7 +94,7 @@ def is_login(func):
     def _func(*args, **kwargs):
         global LOGIN_STATUS
         if LOGIN_STATUS:
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
         else:
             login = Login2()
             login.login_choice()
@@ -102,7 +102,7 @@ def is_login(func):
             try:
                 requests.cookies.load(ignore_discard=True, ignore_expires=True)
                 LOGIN_STATUS = True
-                func(*args, **kwargs)
+                return func(*args, **kwargs)
             except Exception as e:
                 print e
 
@@ -692,9 +692,7 @@ class Tieba(object):
 
     @is_login
     def sign(self):
-        """
-        签到函数
-        20151217通过测试
+        """签到函数
         :return:
         """
         if self.__issign(self.url):
@@ -715,6 +713,7 @@ class Tieba(object):
         if int(r.status_code) == 200:
             return True
         else:
+            print r.content
             return False
 
     def __issign(self, url):
@@ -876,5 +875,5 @@ class Tieba(object):
             self.set_html_by_js()
 
 # if __name__ == '__main__':
-#     a = User("黑曼巴来了92")
-#     a.follow()
+#     a = User("liuqiqi85")
+#     print a.follow.__doc__

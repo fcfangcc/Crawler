@@ -1,8 +1,10 @@
-#-*- coding: UTF-8 -*-
+# -*- coding: UTF-8 -*-
 __author__ = 'fangc'
 import os
-class Js_Html(object):
+import sys
 
+
+class Js_Html(object):
     def system_type(self):
         type = os.name
         if type == 'nt':
@@ -11,12 +13,6 @@ class Js_Html(object):
             return 'unix'
         else:
             return 'unknow'
-
-    def __set_env(self, path):
-        casperjspath = os.path.join(path, 'casperjs\\bin')
-        phantomjspath = os.path.join(path, 'phantomjs\\bin')
-        system_env = os.getenv('Path')
-        os.environ['Path'] = system_env +';'+casperjspath+';'+phantomjspath
 
     def get_html(self, url):
         mydir = os.path.split(os.path.realpath(__file__))[0]
@@ -29,17 +25,25 @@ class Js_Html(object):
 
         with open(jsdir, 'w+') as f:
             f.writelines(text)
-
+        # 设置casperjs和phantomjs的环境变量
         if self.system_type() == 'windows':
-            self.__set_env(mydir)
+            casperjspath = os.path.join(mydir, 'casperjs\\bin')
+            phantomjspath = os.path.join(mydir, 'phantomjs\\bin')
+            system_env = os.getenv('Path')
+            os.environ['Path'] = system_env + ';' + casperjspath + ';' + phantomjspath
             commend = "casperjs %s" % jsdir
         else:
-            # 已经测试通过
+            casperjspath = os.path.join(mydir, 'casperjs/bin')
+            phantomjspath = os.path.join(mydir, 'phantomjs/bin')
+            os.environ["PATH"] += ":{0}:{1}".format(casperjspath, phantomjspath)
             commend = "source /etc/profile && casperjs %s" % jsdir
-        # print commend
-        result = os.popen(commend)
-        return result.read()
-
+        result = os.popen(commend).read()
+        if not result:
+            print("casperjs和phantomjs权限错误或者环境变量错误!\n请执行以下语句:")
+            print("chmod +x {0}").format(casperjspath + "/casperjs")
+            print("chmod +x {0}").format(phantomjspath + "/phantomjs")
+            sys.exit()
+        return result
 
 # print Js_Html().get_html("http://www.baidu.com")
 

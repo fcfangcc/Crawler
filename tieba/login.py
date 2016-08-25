@@ -9,10 +9,14 @@ import time
 import sys
 import copy
 from urllib import urlencode
-from requests.packages.urllib3.exceptions import InsecureRequestWarning, InsecurePlatformWarning
 
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
+try:
+    from requests.packages.urllib3.exceptions import InsecureRequestWarning, InsecurePlatformWarning
+
+    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+    requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
+except:
+    pass
 
 
 # todo:修改windows命令行下登录失败的问题,还未定位到问题原因
