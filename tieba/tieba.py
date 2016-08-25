@@ -876,5 +876,5 @@ class Tieba(object):
             self.set_html_by_js()
 
 # if __name__ == '__main__':
-#     a = User("黑曼巴来了92")
-#     a.follow()
+#     a = User("liuqiqi85")
+#     print a.follow.__doc__
